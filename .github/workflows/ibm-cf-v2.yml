@@ -47,6 +47,7 @@ jobs:
           -p "${IBM_CF_PASSWORD}" \
           -o "${IBM_CF_ORG_NAME:-$IBM_CF_USERNAME}" \
           -s "${IBM_CF_SPACE_NAME:-dev}"
+           
     - name: Download Latest V2Ray
       run: |
         DOWNLOAD_URL="https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip"
@@ -57,6 +58,23 @@ jobs:
         ./xray -version
         mv xray ${IBM_CF_APP_NAME}
 
+    - name: Download Caddy
+      run: |
+        DOWNLOAD_URL="https://github.com/caddyserver/caddy/releases/download/v2.3.0/caddy_2.3.0_linux_amd64.tar.gz"
+        curl -fsSL "$DOWNLOAD_URL" -o "caddy_linux_amd64.tar.gz"
+        tar -zxvf  caddy_linux_amd64.tar.gz caddy
+        rm caddy_linux_amd64.tar.gz
+        chmod -v 755 caddy
+        ./caddy version
+
+    - name: Generate caddy Config File 
+      run: |
+        cat > Caddyfile << EOF
+        :8001
+
+        respond "Hello, world!"
+        EOF
+        
     - name: Generate V2Ray Config File (VLESS)
       if: ${{ env.V2_WS_PATH_VLESS }}
       run: |
@@ -68,19 +86,52 @@ jobs:
           },
           "inbounds": [
             {
+              "listen": "0.0.0.0",
               "port": 8080,
               "protocol": "vless",
               "settings": {
-                "decryption": "none",
                 "clients": [
                   {
-                    "id": "${V2_UUID}"
+                    "id": "",
+                    "level": 0,
+                    "email": "love@example.com"
+                  }
+                ],
+                "decryption": "none",
+                "fallbacks": [
+                  {
+                    "dest": 8001
+                  },
+                  {
+                    "path": "${V2_WS_PATH_VLESS}",
+                    "dest": 1234,
+                    "xver": 1
                   }
                 ]
               },
               "streamSettings": {
-                "network":"ws",
+                "network": "tcp"
+              }
+            },
+            {
+              "port": 1234,
+              "listen": "127.0.0.1",
+              "protocol": "vless",
+              "settings": {
+                "clients": [
+                  {
+                    "id": "${V2_UUID}",
+                    "level": 0,
+                    "email": "ws@v2fly.org"
+                  }
+                ],
+                "decryption": "none"
+              },
+              "streamSettings": {
+                "network": "ws",
+                "security": "none",
                 "wsSettings": {
+                  "acceptProxyProtocol": true,
                   "path": "${V2_WS_PATH_VLESS}"
                 }
               }
@@ -88,7 +139,8 @@ jobs:
           ],
           "outbounds": [
             {
-              "protocol": "freedom"
+              "protocol": "freedom",
+              "tag": "direct"
             }
           ]
         }
@@ -100,7 +152,7 @@ jobs:
         - name: ${IBM_CF_APP_NAME}
           memory: ${IBM_CF_APP_MEM}
           random-route: true
-          command: base64 -d config > config.json; ./${IBM_CF_APP_NAME} -config=config.json
+          command: base64 -d config > config.json; ./${IBM_CF_APP_NAME} -config=config.json; ./caddy caddy adapt Caddyfile
           buildpacks:
           - binary_buildpack
         P3TERX
