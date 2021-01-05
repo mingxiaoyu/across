@@ -1,0 +1,63 @@
+name: Heroku - V2Ray
+
+on:
+  push:
+    paths:
+      - 'heroku-v2ray/Dockerfile'
+      - 'heroku-v2ray/entrypoint.sh'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      V2_UUID: ${{ secrets.V2_UUID }}
+      V2_WS_PATH: ${{ secrets.V2_WS_PATH }}
+      
+    steps:
+      - uses: actions/checkout@v2
+        
+      - name: Generate V2Ray Config File
+        run: |
+          cat > config.json << EOF
+          {
+            "log": {
+            "access": "none"
+          },
+          "inbounds": [
+            {
+              "port": V2RAYPORT,
+              "protocol": "vless",
+              "settings": {
+                "decryption": "none",
+                "clients": [
+                  {
+                    "id": "${V2_UUID}"
+                  }
+                ]
+              },
+              "streamSettings": {
+                "network":"ws",
+                "wsSettings": {
+                  "path": "${V2_WS_PATH}"
+                }
+              }
+            }
+          ],
+          "outbounds": [
+            {
+              "protocol": "freedom",
+              "settings": {}
+            }
+          ]
+          }
+          EOF
+          
+      - name: Deploy to Heroku
+        uses: AkhileshNS/heroku-deploy@v3.8.8
+        with:
+          heroku_email: ${{ secrets.HEROKU_EMAIL }} # your heroku email
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }} # your  heroku api key
+          heroku_app_name: ${{ secrets.HEROKU_V2_APP_NAME }} # you aplication name
+          appdir: heroku-v2ray
+          usedocker: true
