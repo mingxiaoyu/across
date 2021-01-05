@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v2
         
       - name: Generate V2Ray Config File
+        working-directory: heroku-v2ray
         run: |
           cat > config.json << EOF
           {
