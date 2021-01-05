@@ -145,6 +145,11 @@ jobs:
           ]
         }
         P3TERX
+
+    - name: Check Files
+      run: |
+        ls
+        
     - name: Generate Manifest File
       run: |
         cat << P3TERX > manifest.yml
@@ -152,7 +157,7 @@ jobs:
         - name: ${IBM_CF_APP_NAME}
           memory: ${IBM_CF_APP_MEM}
           random-route: true
-          command: base64 -d config > config.json; ./${IBM_CF_APP_NAME} -config=config.json; ./caddy adapt Caddyfile
+          command: base64 -d config > config.json; ./${IBM_CF_APP_NAME} -config=config.json; ./caddy adapt ./Caddyfile
           buildpacks:
           - binary_buildpack
         P3TERX
