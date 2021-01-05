@@ -23,6 +23,7 @@ jobs:
               with:
                 publish: true
                 imageName: mingxiaojing/jd_fruit
-                context: "jd_fruit"
+                dockerFile: jd_fruit/Dockerfile
+                context: jd_fruit
                 dockerUser:  ${{ secrets.DOCKER_USERNAME }}
                 dockerPassword: ${{ secrets.DOCKER_PASSWORD }}
