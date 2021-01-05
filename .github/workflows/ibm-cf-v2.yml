@@ -86,52 +86,19 @@ jobs:
           },
           "inbounds": [
             {
-              "listen": "0.0.0.0",
               "port": 8080,
               "protocol": "vless",
               "settings": {
+                "decryption": "none",
                 "clients": [
                   {
-                    "id": "",
-                    "level": 0,
-                    "email": "love@example.com"
-                  }
-                ],
-                "decryption": "none",
-                "fallbacks": [
-                  {
-                    "dest": 8001
-                  },
-                  {
-                    "path": "${V2_WS_PATH_VLESS}",
-                    "dest": 1234,
-                    "xver": 1
+                    "id": "${V2_UUID}"
                   }
                 ]
               },
               "streamSettings": {
-                "network": "tcp"
-              }
-            },
-            {
-              "port": 1234,
-              "listen": "127.0.0.1",
-              "protocol": "vless",
-              "settings": {
-                "clients": [
-                  {
-                    "id": "${V2_UUID}",
-                    "level": 0,
-                    "email": "ws@v2fly.org"
-                  }
-                ],
-                "decryption": "none"
-              },
-              "streamSettings": {
-                "network": "ws",
-                "security": "none",
+                "network":"ws",
                 "wsSettings": {
-                  "acceptProxyProtocol": true,
                   "path": "${V2_WS_PATH_VLESS}"
                 }
               }
@@ -139,13 +106,12 @@ jobs:
           ],
           "outbounds": [
             {
-              "protocol": "freedom",
-              "tag": "direct"
+              "protocol": "freedom"
             }
           ]
         }
         P3TERX
-
+        
     - name: Check Files
       run: |
         ls
