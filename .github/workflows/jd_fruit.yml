@@ -19,10 +19,10 @@ jobs:
             - name: Checkout master
               uses: actions/checkout@master
             - name: Build and publish image
-              uses: ilteoood/docker_buildx@master
+              uses: ilteoood/docker_buildx@master        
               with:
                 publish: true
                 imageName: mingxiaojing/jd_fruit
-                dockerFile: "jd_fruit/Dockerfile"
+                context: "jd_fruit"
                 dockerUser:  ${{ secrets.DOCKER_USERNAME }}
                 dockerPassword: ${{ secrets.DOCKER_PASSWORD }}
