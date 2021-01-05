@@ -1,0 +1,28 @@
+# This is a basic workflow to help you get started with Actions
+
+name: JD_fruit_Docker
+
+on:
+  push:
+    paths:
+      - 'jd_fruit/Dockerfile'
+      - 'jd_fruit/entrypoint.sh'
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+ build:
+        runs-on: ubuntu-latest
+        name: Build image job
+        steps:
+            - name: Checkout master
+              uses: actions/checkout@master
+            - name: Build and publish image
+              uses: ilteoood/docker_buildx@master
+              with:
+                publish: true
+                imageName: mingxiaojing/jd_fruit
+                dockerFile: "jd_fruit/Dockerfile"
+                dockerUser:  ${{ secrets.DOCKER_USERNAME }}
+                dockerPassword: ${{ secrets.DOCKER_PASSWORD }}
