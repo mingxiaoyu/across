@@ -56,42 +56,7 @@ jobs:
         chmod -v 755 v2*
         ./v2ray -version
         mv v2ray ${IBM_CF_APP_NAME}
-    - name: Generate V2Ray Config File (VMess)
-      if: ${{ env.V2_WS_PATH_VMESS }}
-      run: |
-        base64 << P3TERX > config
-        {
-          "log": {
-            "access": "none",
-            "loglevel": "error"
-          },
-          "inbounds": [
-            {
-              "port": 8080,
-              "protocol": "vmess",
-              "settings": {
-                "clients": [
-                  {
-                    "id": "${V2_UUID}",
-                    "alterId": 64
-                  }
-                ]
-              },
-              "streamSettings": {
-                "network":"ws",
-                "wsSettings": {
-                  "path": "${V2_WS_PATH_VMESS}"
-                }
-              }
-            }
-          ],
-          "outbounds": [
-            {
-              "protocol": "freedom"
-            }
-          ]
-        }
-        P3TERX
+
     - name: Generate V2Ray Config File (VLESS)
       if: ${{ env.V2_WS_PATH_VLESS }}
       run: |
