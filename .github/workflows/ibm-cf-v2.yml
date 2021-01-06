@@ -16,8 +16,7 @@ env:
 on:
   workflow_dispatch:
   repository_dispatch:
-  schedule:
-    - cron: 25 20 1/7 * *
+
 
 jobs:
   deploy:

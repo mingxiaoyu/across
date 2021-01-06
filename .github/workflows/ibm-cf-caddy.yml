@@ -17,7 +17,8 @@ env:
 on:
   workflow_dispatch:
   repository_dispatch:
-
+  schedule:
+    - cron: 25 20 1/7 * *
 
 jobs:
   deploy:
@@ -28,7 +29,7 @@ jobs:
       IBM_CF_PASSWORD: ${{ secrets.IBM_CF_PASSWORD }}
       IBM_CF_ORG_NAME: ${{ secrets.IBM_CF_ORG_NAME }}
       IBM_CF_SPACE_NAME: ${{ secrets.IBM_CF_SPACE_NAME }}
-      IBM_CF_APP_NAME: mingxiaoyutest3
+      IBM_CF_APP_NAME: ${{ secrets.IBM_CF_APP_NAME }}
       V2_UUID: ${{ secrets.V2_UUID }}
       V2_WS_PATH_VLESS: ${{ secrets.V2_WS_PATH }}
       V2RAY_IMAGE_NAME: ${{ secrets.V2RAY_IMAGE_NAME }}
