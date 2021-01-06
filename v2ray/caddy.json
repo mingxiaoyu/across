@@ -1,0 +1,23 @@
+{
+    "apps": {
+        "http": {
+            "servers": {
+                "hello": {
+                    "listen": [
+                        ":8000"
+                    ],
+                    "routes": [
+                        {
+                            "handle": [
+                                {
+                                    "body": "Hello, world!",
+                                    "handler": "static_response"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
