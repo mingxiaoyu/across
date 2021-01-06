@@ -9,10 +9,10 @@ if  [[ $CADDY = "true" ]];
 then
 echo "run caddy ..."
 /usr/bin/caddy start
-curl localhost:2019/load \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -d @caddy.json
+#curl localhost:2019/load \
+#  -X POST \
+#  -H "Content-Type: application/json" \
+#  -d @caddy.json
 echo "run caddy completed"
 fi
 
