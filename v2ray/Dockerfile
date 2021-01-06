@@ -24,7 +24,7 @@ RUN wget -O /usr/bin/xray https://dl.lamp.sh/files/xray_linux_386 \
 
 COPY config.json /etc/v2ray/config.json
 COPY caddy.json	caddy.json
-COPY Caddyfile /usr/bin/Caddyfile
+#COPY Caddyfile /usr/bin/Caddyfile
 
 ADD entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
