@@ -3,8 +3,7 @@ name: Heroku - V2Ray
 on:
   push:
     paths:
-      - 'heroku-v2ray/Dockerfile'
-      - 'heroku-v2ray/entrypoint.sh'
+      - 'v2ray/*'
   workflow_dispatch:
 
 jobs:
@@ -17,42 +16,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         
-      - name: Generate V2Ray Config File
-        working-directory: heroku-v2ray
+      - name: Generate Heroku File
+        working-directory: v2ray
         run: |
-          cat > config.json << EOF
-          {
-            "log": {
-            "access": "none"
-          },
-          "inbounds": [
-            {
-              "port": V2RAYPORT,
-              "protocol": "vless",
-              "settings": {
-                "decryption": "none",
-                "clients": [
-                  {
-                    "id": "${V2_UUID}"
-                  }
-                ]
-              },
-              "streamSettings": {
-                "network":"ws",
-                "wsSettings": {
-                  "path": "${V2_WS_PATH}"
-                }
-              }
-            }
-          ],
-          "outbounds": [
-            {
-              "protocol": "freedom",
-              "settings": {}
-            }
-          ]
-          }
-          EOF
+          sed -i "s@V2RAYUUID@${V2_UUID}@g" Dockerfile
+          sed -i "s@V2RAYWSPATH@${V2_WS_PATH}@g" Dockerfile
+          sed -i "2i sed -i "s@8080@\${PORT}@g" /etc/v2ray/config.json"  entrypoint.sh
           
       - name: Deploy to Heroku
         uses: AkhileshNS/heroku-deploy@v3.8.8
@@ -60,5 +29,5 @@ jobs:
           heroku_email: ${{ secrets.HEROKU_EMAIL }} # your heroku email
           heroku_api_key: ${{ secrets.HEROKU_API_KEY }} # your  heroku api key
           heroku_app_name: ${{ secrets.HEROKU_V2_APP_NAME }} # you aplication name
-          appdir: heroku-v2ray
+          appdir: v2ray
           usedocker: true
