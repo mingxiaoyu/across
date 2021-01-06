@@ -71,5 +71,14 @@ jobs:
       with:
         time: '1m'
 
+    - name: Generate Manifest File
+      run: |
+        cat << P3TERX > manifest.yml
+        applications:
+        - name: ${IBM_CF_APP_NAME}
+          memory: ${IBM_CF_APP_MEM}
+          random-route: true
+        P3TERX
+        
     - name: Deploy Cloud Foundry App
-      run: cf push ${IBM_CF_APP_NAME} -m ${IBM_CF_APP_MEM} --docker-image ${V2RAY_IMAGE_NAME}
+      run: cf push ${IBM_CF_APP_NAME}  -o ${V2RAY_IMAGE_NAME}:latest
