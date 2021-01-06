@@ -13,19 +13,19 @@ if [ $? -ne 0 ]; then
 fi
 echo "Download binary file: ${XRAY_FILE} completed"
 
-echo "Download binary file: ${XRAY_FILE} completed"
-chmod +x /usr/bin/xray
- 
-echo "xray port: ${PORT} completed"
+echo "modify v2ray config ..."
 sed -i "s@V2_UUID@${V2_UUID}@g" /etc/v2ray/config.json
 sed -i "s@V2_WS_PATH_VLESS@${V2_WS_PATH_VLESS}@g" /etc/v2ray/config.json
+echo "modify v2ray config completed"
 
-echo "run caddy"
+echo "run caddy ..."
 /usr/bin/caddy start
 curl localhost:2019/load \
   -X POST \
   -H "Content-Type: application/json" \
   -d @caddy.json
+echo "run caddy completed"
 
 echo "run v2ray"
+chmod +x /usr/bin/xray
 /usr/bin/xray -config /etc/v2ray/config.json
