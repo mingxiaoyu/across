@@ -27,7 +27,7 @@ jobs:
       IBM_CF_PASSWORD: ${{ secrets.IBM_CF_PASSWORD }}
       IBM_CF_ORG_NAME: ${{ secrets.IBM_CF_ORG_NAME }}
       IBM_CF_SPACE_NAME: ${{ secrets.IBM_CF_SPACE_NAME }}
-      IBM_CF_APP_NAME: ${{ secrets.IBM_CF_APP_NAME }}
+      IBM_CF_APP_NAME: mingxiaoyutest
       V2_UUID: ${{ secrets.V2_UUID }}
       V2_WS_PATH_VLESS: ${{ secrets.V2_WS_PATH }}
       V2RAY_IMAGE_NAME: ${{ secrets.V2RAY_IMAGE_NAME }}
