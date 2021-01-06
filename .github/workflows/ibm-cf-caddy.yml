@@ -83,7 +83,7 @@ jobs:
           memory: ${IBM_CF_APP_MEM}
           random-route: true
           docker:
-            image:${V2RAY_IMAGE_NAME}
+            image: ${V2RAY_IMAGE_NAME}
         P3TERX
         
     - name: Deploy Cloud Foundry App
