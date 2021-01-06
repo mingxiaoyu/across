@@ -21,7 +21,7 @@ jobs:
         run: |
           sed -i "s@V2RAYUUID@${V2_UUID}@g" Dockerfile
           sed -i "s@V2RAYWSPATH@${V2_WS_PATH}@g" Dockerfile
-          sed -i "2i sed -i "s@8080@\${PORT}@g" /etc/v2ray/config.json"  entrypoint.sh
+          sed -i "2i sed -i "s@8080@\${PORT}@g" /v2/config.json"  entrypoint.sh
           
       - name: Deploy to Heroku
         uses: AkhileshNS/heroku-deploy@v3.8.8

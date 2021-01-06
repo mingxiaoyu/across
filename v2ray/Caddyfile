@@ -4,6 +4,6 @@
   admin off
 }
 
-localhost:8000 {
+:8000 {
 	respond "Hello, world!"	
 }
