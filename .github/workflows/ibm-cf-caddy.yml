@@ -27,11 +27,14 @@ jobs:
       IBM_CF_PASSWORD: ${{ secrets.IBM_CF_PASSWORD }}
       IBM_CF_ORG_NAME: ${{ secrets.IBM_CF_ORG_NAME }}
       IBM_CF_SPACE_NAME: ${{ secrets.IBM_CF_SPACE_NAME }}
-      IBM_CF_APP_NAME: mxycaddy
-
+      IBM_CF_APP_NAME: ${{ secrets.IBM_CF_APP_NAME }}
+      V2_UUID: ${{ secrets.V2_UUID }}
+      V2_WS_PATH_VLESS: ${{ secrets.V2_WS_PATH }}
+      V2RAY_IMAGE_NAME: ${{ secrets.V2RAY_IMAGE_NAME }}
 
     steps:
-
+    - uses: actions/checkout@v2
+      
     - name: Install Cloud Foundry CLI
       run: |
         curl -fsSL "https://packages.cloudfoundry.org/stable?release=linux64-binary&version=v7&source=github" | tar -zxC /tmp
@@ -46,37 +49,27 @@ jobs:
           -o "${IBM_CF_ORG_NAME:-$IBM_CF_USERNAME}" \
           -s "${IBM_CF_SPACE_NAME:-dev}"
            
-
-    - name: Download Caddy
+    - name: Generate Heroku File
+      working-directory: v2ray
       run: |
-        DOWNLOAD_URL="https://github.com/caddyserver/caddy/releases/download/v2.3.0/caddy_2.3.0_linux_amd64.tar.gz"
-        curl -fsSL "$DOWNLOAD_URL" -o "caddy_linux_amd64.tar.gz"
-        tar -zxvf  caddy_linux_amd64.tar.gz caddy
-        rm caddy_linux_amd64.tar.gz
-        chmod -v 755 caddy
-        ./caddy version
-        
-    - name: Generate caddy Config File 
-      run: |
-        cat > Caddyfile << EOF
-        :8080
-        respond "Hello, world!"
-        EOF
+          sed -i "s@V2RAYUUID@${V2_UUID}@g" Dockerfile
+          sed -i "s@V2RAYWSPATH@${V2_WS_PATH_VLESS}@g" Dockerfile   
+          
+    - name: Build and publish image
+      uses: ilteoood/docker_buildx@master        
+      with:
+          publish: true
+          imageName: ${{ secrets.V2RAY_IMAGE_NAME }}
+          dockerFile: v2ray/Dockerfile
+          context: v2ray
+          platform: linux/amd64
+          dockerUser:  ${{ secrets.DOCKER_USERNAME }}
+          dockerPassword: ${{ secrets.DOCKER_PASSWORD }}   
  
-    - name: Check Files
-      run: |
-        ls
-        
-    - name: Generate Manifest File
-      run: |
-        cat << P3TERX > manifest.yml
-        applications:
-        - name: ${IBM_CF_APP_NAME}
-          memory: ${IBM_CF_APP_MEM}
-          random-route: true
-          command: ./caddy adapt --config Caddyfile; ./caddy start
-          buildpacks:
-          - binary_buildpack
-        P3TERX
+    - name: Sleep for 30 seconds
+      uses: jakejarvis/wait-action@master
+      with:
+        time: '1m'
+
     - name: Deploy Cloud Foundry App
-      run: cf push
+      run: cf push ${IBM_CF_APP_NAME} -m ${IBM_CF_APP_MEM} -o ${V2RAY_IMAGE_NAME}
