@@ -72,4 +72,4 @@ jobs:
         time: '1m'
 
     - name: Deploy Cloud Foundry App
-      run: cf push ${IBM_CF_APP_NAME} -m ${IBM_CF_APP_MEM} -o ${V2RAY_IMAGE_NAME}
+      run: cf push ${IBM_CF_APP_NAME} -m ${IBM_CF_APP_MEM} --docker-image ${V2RAY_IMAGE_NAME}
