@@ -18,13 +18,13 @@ sed -i "s@V2_UUID@${V2_UUID}@g" /etc/v2ray/config.json
 sed -i "s@V2_WS_PATH_VLESS@${V2_WS_PATH_VLESS}@g" /etc/v2ray/config.json
 echo "modify v2ray config completed"
 
-echo "run caddy ..."
-/usr/bin/caddy start
-curl localhost:2019/load \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -d @caddy.json
-echo "run caddy completed"
+#echo "run caddy ..."
+#/usr/bin/caddy start
+#curl localhost:2019/load \
+#  -X POST \
+#  -H "Content-Type: application/json" \
+#  -d @caddy.json
+#echo "run caddy completed"
 
 echo "run v2ray"
 chmod +x /usr/bin/xray
