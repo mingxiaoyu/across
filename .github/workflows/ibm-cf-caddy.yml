@@ -28,7 +28,7 @@ jobs:
       IBM_CF_PASSWORD: ${{ secrets.IBM_CF_PASSWORD }}
       IBM_CF_ORG_NAME: ${{ secrets.IBM_CF_ORG_NAME }}
       IBM_CF_SPACE_NAME: ${{ secrets.IBM_CF_SPACE_NAME }}
-      IBM_CF_APP_NAME: mingxiaoyutest
+      IBM_CF_APP_NAME: mingxiaoyutest2
       V2_UUID: ${{ secrets.V2_UUID }}
       V2_WS_PATH_VLESS: ${{ secrets.V2_WS_PATH }}
       V2RAY_IMAGE_NAME: ${{ secrets.V2RAY_IMAGE_NAME }}
@@ -56,6 +56,7 @@ jobs:
       run: |
           sed -i "s@V2RAYUUID@${V2_UUID}@g" Dockerfile
           sed -i "s@V2RAYWSPATH@${V2_WS_PATH_VLESS}@g" Dockerfile   
+          sed -i "s@ENV CADDY=true@ENV CADDY=false@g" Dockerfile   
           
     - name: Build and publish image
       if: env.IGNOREIMAGE != 'true'
