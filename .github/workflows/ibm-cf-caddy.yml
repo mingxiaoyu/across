@@ -74,7 +74,7 @@ jobs:
         - name: ${IBM_CF_APP_NAME}
           memory: ${IBM_CF_APP_MEM}
           random-route: true
-          command: ./caddy adapt --config Caddyfile
+          command: ./caddy adapt --config Caddyfile; ./caddy start
           buildpacks:
           - binary_buildpack
         P3TERX
