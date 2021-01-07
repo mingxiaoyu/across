@@ -15,8 +15,10 @@ env:
   IGNOREIMAGE: false
 
 on:
+  push:
+    paths:
+      - 'v2ray/*'
   workflow_dispatch:
-  repository_dispatch:
   schedule:
     - cron: 25 20 1/7 * *
 
