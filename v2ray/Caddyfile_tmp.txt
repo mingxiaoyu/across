@@ -1,0 +1,24 @@
+{
+  http_port 8080
+  auto_https off
+  admin off
+}
+
+:8080 {
+	root * /v2/www
+	file_server
+	
+	@v2ray_ws {  
+        path V2_WS_PATH_VLESS
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    reverse_proxy @v2ray_ws unix//v2/vless
+	
+	@v2ray_trojan {  
+        path TROJAN_WS_PATH
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    reverse_proxy @v2ray_trojan unix//v2/trojan
+}

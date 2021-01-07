@@ -18,4 +18,5 @@ echo "run caddy completed"
 fi
 
 echo "run v2ray"
+chmod +x ./xray
 ./xray -config config.json

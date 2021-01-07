@@ -5,5 +5,5 @@
 }
 
 :8000 {
-	respond "Hello, world!"	
+	respond "This is the web of private organizations, not open to the public!"	
 }
