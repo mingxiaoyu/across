@@ -44,7 +44,7 @@ RUN chown nobody:nobody -R /JD \
 
 #RUN npm config set registry https://registry.npm.taobao.org 
 
-RUN wget --no-check-certificate -t 3 -T 10 -q https://raw.githubusercontent.com/lxk0301/jd_scripts/master/package.json  -O /JD/package.json \
+RUN wget --no-check-certificate -t 3 -T 10 -q https://gitee.com/lxk0301/jd_scripts/raw/master/package.json  -O /JD/package.json \
 	&& npm install
 
 USER nobody

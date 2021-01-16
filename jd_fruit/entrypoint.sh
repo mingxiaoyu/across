@@ -32,10 +32,10 @@ EOF
 }
 
 update() {
-    wget --no-check-certificate -t 3 -T 10 -q https://raw.githubusercontent.com/lxk0301/jd_scripts/master/jd_fruit.js -O /tmp/jd_fruit.js
-    wget --no-check-certificate -t 3 -T 10 -q https://raw.githubusercontent.com/lxk0301/jd_scripts/master/jdCookie.js -O /tmp/jdCookie.js
-    wget --no-check-certificate -t 3 -T 10 -q https://raw.githubusercontent.com/lxk0301/jd_scripts/master/sendNotify.js -O /tmp/sendNotify.js
-    wget --no-check-certificate -t 3 -T 10 -q https://raw.githubusercontent.com/lxk0301/jd_scripts/master/jdFruitShareCodes.js  -O /tmp/jdFruitShareCodes.js
+    wget --no-check-certificate -t 3 -T 10 -q https://gitee.com/lxk0301/jd_scripts/raw/master/jd_fruit.js -O /tmp/jd_fruit.js
+    wget --no-check-certificate -t 3 -T 10 -q https://gitee.com/lxk0301/jd_scripts/raw/master/jdCookie.js -O /tmp/jdCookie.js
+    wget --no-check-certificate -t 3 -T 10 -q https://gitee.com/lxk0301/jd_scripts/raw/master/sendNotify.js -O /tmp/sendNotify.js
+    wget --no-check-certificate -t 3 -T 10 -q https://gitee.com/lxk0301/jd_scripts/raw/master/jdFruitShareCodes.js  -O /tmp/jdFruitShareCodes.js
 
 
     if [ $? -eq 0 ]; then
