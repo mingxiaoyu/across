@@ -5,6 +5,8 @@ on:
     paths:
       - 'v2ray/*'
   workflow_dispatch:
+  schedule:
+    - cron: 25 20 1/7 * *
 
 jobs:
   build:
