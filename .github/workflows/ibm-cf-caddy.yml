@@ -36,7 +36,7 @@ jobs:
       V2_WS_PATH_VLESS: ${{ secrets.V2_WS_PATH }}
       V2RAY_IMAGE_NAME: ${{ secrets.V2RAY_IMAGE_NAME }}
       TROJAN_WS_PATH: ${{ secrets.TROJAN_WS_PATH }}
-      TROJAN_PWD: ${{ secrets.TROJANPWD }}
+      TROJAN_PWD: ${{ secrets.TROJAN_PWD }}
       
     steps:
     - uses: actions/checkout@v2
@@ -61,6 +61,8 @@ jobs:
       run: |
           sed -i "s@V2RAYUUID@${V2_UUID}@g" Dockerfile
           sed -i "s@V2RAYWSPATH@${V2_WS_PATH_VLESS}@g" Dockerfile   
+          sed -i "s@TROJANWSPATH@${TROJAN_WS_PATH}@g" Dockerfile
+          sed -i "s@TROJANPWD@${TROJAN_PWD}@g" Dockerfile
 #          sed -i "s@ENV CADDY=true@ENV CADDY=false@g" Dockerfile   
           
     - name: Build and publish image

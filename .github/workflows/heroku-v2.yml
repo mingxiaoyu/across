@@ -15,7 +15,7 @@ jobs:
       V2_UUID: ${{ secrets.V2_UUID }}
       V2_WS_PATH: ${{ secrets.V2_WS_PATH }}
       TROJAN_WS_PATH: ${{ secrets.TROJAN_WS_PATH }}
-      TROJAN_PWD: ${{ secrets.TROJANPWD }}
+      TROJAN_PWD: ${{ secrets.TROJAN_PWD }}
       
     steps:
       - uses: actions/checkout@v2
