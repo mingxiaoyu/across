@@ -1,65 +1,88 @@
 {
   "log": {
-	"access": "none",
-	"loglevel": "error"
+    "access": "none",
+    "loglevel": "error"
   },
   "inbounds": [
-	{
-	  "listen": "0.0.0.0",
-	  "port": 8080,
-	  "protocol": "vless",
-	  "settings": {
-		"clients": [
-		  {
-			"id": "V2_UUID",
-			"level": 0,
-			"email": "love@example.com"
-		  }
-		],
-		"decryption": "none",
-		"fallbacks": [
-		  {
-			"dest": 8000
-		  },
-		  {
-			"path": "V2_WS_PATH_VLESS",
-			"dest": 1234,
-			"xver": 1
-		  }
-		]
-	  },
-	  "streamSettings": {
-		"network": "tcp"
-	  }
-	},
-	{
-	  "port": 1234,
-	  "listen": "127.0.0.1",
-	  "protocol": "vless",
-	  "settings": {
-		"clients": [
-		  {
-			"id": "V2_UUID",
-			"level": 0,
-			"email": "ws@v2fly.org"
-		  }
-		],
-		"decryption": "none"
-	  },
-	  "streamSettings": {
-		"network": "ws",
-		"security": "none",
-		"wsSettings": {
-		  "acceptProxyProtocol": true,
-		  "path": "V2_WS_PATH_VLESS"
-		}
-	  }
-	}
+    {
+      "listen": "0.0.0.0",
+      "port": 8080,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "V2_UUID",
+            "level": 0,
+            "email": "love@example.com"
+          }
+        ],
+        "decryption": "none",
+        "fallbacks": [
+          {
+            "dest": 8000
+          },
+          {
+            "path": "V2_WS_PATH_VLESS",
+            "dest": 1234,
+            "xver": 1
+          },
+          {
+            "path": "TROJAN_WS_PATH",
+            "dest": 6789,
+            "xver": 1
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp"
+      }
+    },
+    {
+      "port": 1234,
+      "listen": "127.0.0.1",
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "V2_UUID",
+            "level": 0,
+            "email": "ws@v2fly.org"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "V2_WS_PATH_VLESS"
+        }
+      }
+    },
+    {
+      "port": 6789,
+      "protocol": "trojan",
+      "settings": {
+        "clients": [
+          {
+            "password": "TROJANPWD"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "TROJAN_WS_PATH"
+        }
+      }
+    }
   ],
   "outbounds": [
-	{
-	  "protocol": "freedom",
-	  "tag": "direct"
-	}
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    }
   ]
 }

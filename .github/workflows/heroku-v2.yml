@@ -14,6 +14,8 @@ jobs:
     env:
       V2_UUID: ${{ secrets.V2_UUID }}
       V2_WS_PATH: ${{ secrets.V2_WS_PATH }}
+      TROJAN_WS_PATH: ${{ secrets.TROJAN_WS_PATH }}
+      TROJAN_PWD: ${{ secrets.TROJANPWD }}
       
     steps:
       - uses: actions/checkout@v2
@@ -23,6 +25,8 @@ jobs:
         run: |
           sed -i "s@V2RAYUUID@${V2_UUID}@g" Dockerfile
           sed -i "s@V2RAYWSPATH@${V2_WS_PATH}@g" Dockerfile
+          sed -i "s@TROJANWSPATH@${TROJAN_WS_PATH}@g" Dockerfile
+          sed -i "s@TROJANPWD@${TROJAN_PWD}@g" Dockerfile
           sed -i "2i sed -i "s@8080@\${PORT}@g" /v2/config.json"  entrypoint.sh
           
       - name: Deploy to Heroku

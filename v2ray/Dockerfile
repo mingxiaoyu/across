@@ -4,6 +4,8 @@ FROM alpine:latest
 ENV TZ=Asia/Shanghai
 ENV V2_UUID=V2RAYUUID
 ENV V2_WS_PATH_VLESS=V2RAYWSPATH
+ENV TROJAN_WS_PATH=TROJANWSPATH
+ENV TROJAN_PWD=TROJANPWD
 ENV CADDY=true
 ENV DOWNLOAD_URL=https://github.com/caddyserver/caddy/releases/download/v2.3.0/caddy_2.3.0_linux_amd64.tar.gz
 
