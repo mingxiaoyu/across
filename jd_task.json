@@ -30,7 +30,7 @@
       "running": true,
       "job": {
         "type": "runjs",
-        "target": "https://ghproxy.com/https://raw.githubusercontent.com/joyblablabla/zero205-JD_tencent_scf/main/backUp/jd_utils.js"
+        "target": "https://ghproxy.com/https://raw.githubusercontent.com/mingxiaoyu/across/main/jd_utils.jss"
       }
     },
     {
