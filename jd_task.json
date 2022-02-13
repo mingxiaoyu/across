@@ -30,7 +30,7 @@
       "running": true,
       "job": {
         "type": "runjs",
-        "target": "https://ghproxy.com/https://raw.githubusercontent.com/mingxiaoyu/across/main/jd_utils.js"
+        "target": "https://ghproxy.com/https://raw.githubusercontent.com/joyblablabla/zero205-JD_tencent_scf/main/backUp/jd_utils.js"
       }
     },
     {
@@ -60,7 +60,7 @@
       "running": true,
       "job": {
         "type": "runjs",
-        "target": "https://ghproxy.com/https://raw.fastgit.org/NobyDa/Script/master/JD-DailyBonus/JD_DailyBonus.js"
+        "target": "https://ghproxy.com/hhttps://github.com/NobyDa/Script/blob/master/JD-DailyBonus/JD_DailyBonus.js"
       }
     },
     {
