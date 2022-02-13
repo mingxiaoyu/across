@@ -30,7 +30,7 @@
       "running": true,
       "job": {
         "type": "runjs",
-        "target": "https://ghproxy.com/https://raw.githubusercontent.com/mingxiaoyu/across/main/jd_utils.jss"
+        "target": "https://ghproxy.com/https://raw.githubusercontent.com/mingxiaoyu/across/main/jd_utils.js"
       }
     },
     {
