@@ -5,20 +5,18 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-      
-    steps:    
-        name: Build image job
-        steps:
-            - name: Clone 
-              run: |
-                git clone https://github.com/fanck0605/subconverter-react
-            - name: Build and publish image
-              uses: ilteoood/docker_buildx@master        
-              with:
-                publish: true
-                imageName: mingxiaojing/subconverter-react
-                dockerFile: subconverter-react/Dockerfile
-                context: subconverter-react
-                dockerUser:  ${{ secrets.DOCKER_USERNAME }}
-                dockerPassword: ${{ secrets.DOCKER_PASSWORD }}
+    name: Build image job
+    runs-on: ubuntu-latest   
+    steps:
+        - name: Clone 
+          run: |
+            git clone https://github.com/fanck0605/subconverter-react
+        - name: Build and publish image
+          uses: ilteoood/docker_buildx@master        
+          with:
+            publish: true
+            imageName: mingxiaojing/subconverter-react
+            dockerFile: subconverter-react/Dockerfile
+            context: subconverter-react
+            dockerUser:  ${{ secrets.DOCKER_USERNAME }}
+            dockerPassword: ${{ secrets.DOCKER_PASSWORD }}
