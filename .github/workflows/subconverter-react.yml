@@ -16,6 +16,7 @@ jobs:
           with:
             publish: true
             imageName: mingxiaojing/subconverter-react
+            platform: linux/amd64,linux/arm64
             dockerFile: subconverter-react/Dockerfile
             context: subconverter-react
             dockerUser:  ${{ secrets.DOCKER_USERNAME }}
