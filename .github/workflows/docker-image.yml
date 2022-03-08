@@ -21,6 +21,7 @@ jobs:
               uses: ilteoood/docker_buildx@master        
               with:
                 publish: true
+                platform: linux/amd64,linux/arm64
                 imageName: mingxiaojing/qinglong
                 dockerFile: qinglong/Dockerfile
                 context: qinglong
