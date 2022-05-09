@@ -30,7 +30,7 @@ jobs:
           sed -i "2i sed -i "s@8080@\${PORT}@g" /v2/config.json"  entrypoint.sh
           
       - name: Deploy to Heroku
-        uses: AkhileshNS/heroku-deploy@v3.8.8
+        uses: AkhileshNS/heroku-deploy@v3.12.12
         with:
           heroku_email: ${{ secrets.HEROKU_EMAIL }} # your heroku email
           heroku_api_key: ${{ secrets.HEROKU_API_KEY }} # your  heroku api key
