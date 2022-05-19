@@ -4,4 +4,3 @@ DOMAIN-SUFFIX,idemo-ppc.com
 DOMAIN-SUFFIX,infosysapps.com
 DOMAIN-SUFFIX,infosys.com
 DST-PORT,22
-SRC-PORT,22
