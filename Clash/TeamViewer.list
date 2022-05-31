@@ -1,5 +1,6 @@
 # 内容：SteamCN
 #TeamViewer
+DOMAIN-SUFFIX,teamviewer.com,no-resolve
 IP-CIDR,109.239.140.0/24,no-resolve
 IP-CIDR,139.220.243.27/32,no-resolve
 IP-CIDR,172.16.102.56/32,no-resolve
