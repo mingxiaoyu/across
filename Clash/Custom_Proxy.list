@@ -1,0 +1,6 @@
+# NAME: Custom_Proxy
+# 强制代理列表
+
+# GooglePlay 相关
+DOMAIN-SUFFIX,xn--ngstr-lra8j.com
+DOMAIN-SUFFIX,services.googleapis.cn
