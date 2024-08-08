@@ -33,6 +33,9 @@ IP-CIDR,199.15.77.199/32,no-resolve
 IP-CIDR,199.15.77.232/32,no-resolve
 IP-CIDR,103.135.250.65/32,no-resolve
 
+# zerotier
+DOMAIN-SUFFIX,zerotier.com
+
 # 投屏
 DOMAIN-SUFFIX,iqiyi.com
 DOMAIN-SUFFIX,youku.com
