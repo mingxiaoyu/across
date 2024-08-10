@@ -39,3 +39,7 @@ DOMAIN-SUFFIX,zerotier.com
 # 投屏
 DOMAIN-SUFFIX,iqiyi.com
 DOMAIN-SUFFIX,youku.com
+
+
+DOMAIN-SUFFIX,crl.verisign.com
+DOMAIN-SUFFIX,ocsp.entrust.net
