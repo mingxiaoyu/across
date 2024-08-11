@@ -40,8 +40,13 @@ DOMAIN-SUFFIX,zerotier.com
 DOMAIN-SUFFIX,iqiyi.com
 DOMAIN-SUFFIX,youku.com
 
-
-DOMAIN-SUFFIX,crl.verisign.com
-DOMAIN-SUFFIX,ocsp.entrust.net
+# 某人的游戏
 DOMAIN-SUFFIX,huoyugame.com
 DOMAIN-SUFFIX,ifytek.com
+
+# Ohters
+DOMAIN-SUFFIX,crl.verisign.com
+DOMAIN-SUFFIX,ocsp.entrust.net
+DOMAIN-SUFFIX,zhihu.com.dhcp
+DOMAIN-SUFFIX,nvidia.com
+DOMAIN-SUFFIX,sogou.com.dhcp
