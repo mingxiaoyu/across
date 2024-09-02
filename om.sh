@@ -25,6 +25,9 @@ update_script() {
     # 赋予新的脚本执行权限
     chmod +x om.sh
 
+    # 确保目录存在
+    sudo mkdir -p /usr/local/bin
+
     # 移动或复制新脚本到系统目录
     sudo cp om.sh "$script_path"
 
@@ -36,10 +39,14 @@ update_script() {
     exit 0
 }
 
+
 # 安装功能
 install_script() {
     local script_path="/usr/local/bin/om.sh"
     local link_path="/usr/local/bin/om"
+
+    # 确保目录存在
+    sudo mkdir -p /usr/local/bin
 
     # 复制脚本到系统目录
     sudo cp "$0" "$script_path"
@@ -52,6 +59,7 @@ install_script() {
 
     echo "安装完成。你可以使用 'om' 命令来调用脚本。"
 }
+
 
 # 卸载功能
 uninstall_script() {
