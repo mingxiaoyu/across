@@ -1,5 +1,60 @@
 #!/bin/bash
 
+# 下载并更新脚本
+update_script() {
+    echo "正在更新脚本..."
+    local new_script_url="https://raw.githubusercontent.com/mingxiaoyu/across/main/om.sh"
+    local script_path="/usr/local/bin/om.sh"
+    local link_path="/usr/local/bin/om"
+
+    # 临时下载新的脚本到当前目录
+    curl -O "$new_script_url"
+
+    # 赋予新的脚本执行权限
+    chmod +x om.sh
+
+    # 移动或复制新脚本到系统目录
+    sudo cp om.sh "$script_path"
+
+    # 创建或更新符号链接
+    sudo ln -sf "$script_path" "$link_path"
+
+    echo "脚本更新完成。"
+    echo "请重新运行 'om' 命令以应用更新。"
+    exit 0
+}
+
+# 安装功能
+install_script() {
+    local script_path="/usr/local/bin/om.sh"
+    local link_path="/usr/local/bin/om"
+
+    # 复制脚本到系统目录
+    sudo cp "$0" "$script_path"
+
+    # 赋予执行权限
+    sudo chmod +x "$script_path"
+
+    # 创建符号链接
+    sudo ln -sf "$script_path" "$link_path"
+
+    echo "安装完成。你可以使用 'om' 命令来调用脚本。"
+}
+
+# 卸载功能
+uninstall_script() {
+    local script_path="/usr/local/bin/om.sh"
+    local link_path="/usr/local/bin/om"
+
+    # 删除符号链接
+    sudo rm -f "$link_path"
+
+    # 删除脚本文件
+    sudo rm -f "$script_path"
+
+    echo "卸载完成。"
+}
+
 # 设置 BBRv3
 setup_bbr3() {
     echo "正在设置 BBRv3..."
@@ -148,23 +203,35 @@ add_warp() {
 # 主菜单
 main_menu() {
     echo "请选择一个操作:"
-    echo "1. 设置 BBRv3"
-    echo "2. 清理防火墙"
-    echo "3. 添加 Warp"
-    echo "4. 退出"
+    echo "1. 安装脚本"
+    echo "2. 卸载脚本"
+    echo "3. 更新脚本"
+    echo "4. 设置 BBRv3"
+    echo "5. 清理防火墙"
+    echo "6. 添加 Warp"
+    echo "7. 退出"
     read -p "请输入选项编号: " choice
 
     case $choice in
         1)
-            setup_bbr3
+            install_script
             ;;
         2)
-            clean_firewall
+            uninstall_script
             ;;
         3)
-            add_warp
+            update_script
             ;;
         4)
+            setup_bbr3
+            ;;
+        5)
+            clean_firewall
+            ;;
+        6)
+            add_warp
+            ;;
+        7)
             echo "退出程序..."
             exit 0
             ;;
