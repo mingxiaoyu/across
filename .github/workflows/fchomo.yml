@@ -34,7 +34,7 @@ jobs:
         tar xvf immortalwrt-sdk-23.05.4-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
 
         # Change directory to SDK root
-        cd immortalwrt-sdk-*-x86_64_*
+        cd immortalwrt-sdk-23.05.4-x86-64_gcc-12.3.0_musl.Linux-x86_64
 
         # First run to generate a default .config file
         make defconfig
