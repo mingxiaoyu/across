@@ -1,0 +1,72 @@
+name: OpenWrt fchomo IPK
+
+on:
+  workflow_dispatch:
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Initialize build environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /upload
+        sudo chown $USER:$GROUPS /upload
+
+    - name: Compile the firmware
+      id: compile
+      run: |
+        # Download the OpenWrt SDK
+        wget https://downloads.immortalwrt.org/releases/23.05.4/targets/x86/64/immortalwrt-sdk-23.05.4-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+        # Extract the SDK
+        tar xvf immortalwrt-sdk-23.05.4-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+        # Change directory to SDK root
+        cd immortalwrt-sdk-*-x86_64_*
+
+        # First run to generate a default .config file
+        make defconfig
+
+        # Update and install feeds
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+        # Clone the openwrt-fchomo package
+        git clone --depth 1 --branch master --single-branch --no-checkout https://github.com/muink/openwrt-fchomo.git package/openwrt-fchomo
+        pushd package/openwrt-fchomo
+        umask 022
+        git checkout master  # Make sure you're on the right branch or commit
+        popd
+
+        # Configure package to be built
+        echo "CONFIG_PACKAGE_luci-app-fchomo=y" >> .config
+
+        # Compile the package
+        make package/luci-app-fchomo/compile V=s BUILD_LOG=y -j$(nproc)
+
+    - name: Organize files
+      id: organize
+      run: |
+        # Move the IPK files to the upload folder
+        find . -type f -name "*.ipk" -exec cp {} upload/ \;
+
+        # Set the current timestamp for file naming
+        echo "FILE_DATE=$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+    - name: Upload bin directory
+      uses: actions/upload-artifact@v3
+      with:
+        name: IPK-${{ env.FILE_DATE }}
+        path: upload
