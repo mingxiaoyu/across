@@ -1,0 +1,212 @@
+name: OpenWrt Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+        tag_name:
+        description: 'Tag Name'
+        required: true
+        default: 'v23.05.4'
+
+env:
+  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  TZ: Asia/Shanghai
+  SOURCE_BRANCH: ${{ github.event.inputs.tag_name }}
+  UPLOAD_BIN_DIR: true
+  UPLOAD_FIRMWARE: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+              bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
+              g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+              libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
+              libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano \
+              ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
+              python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
+              upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    - name: Clone source code
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    - name: Update feeds
+      run: cd openwrt && ./scripts/feeds update -a
+
+    - name: Install feeds
+      run: cd openwrt && ./scripts/feeds install -a
+
+    - name: Make config
+      run: |
+        VERSION=${{ github.event.inputs.tag_name }}
+        VERSION=${VERSION//v/}  # This removes the 'v' from the tag name
+        cat <<EOF > .config
+        CONFIG_TARGET_x86=y
+        CONFIG_TARGET_x86_64=y
+        CONFIG_TARGET_MULTI_PROFILE=y
+        CONFIG_TARGET_DEVICE_x86_64_DEVICE_generic=y
+        CONFIG_TARGET_DEVICE_PACKAGES_x86_64_DEVICE_generic=""
+        CONFIG_ALL_KMODS=y
+        CONFIG_ALL_NONSHARED=y
+        CONFIG_DEVEL=y
+        CONFIG_TARGET_PER_DEVICE_ROOTFS=y
+        CONFIG_AUTOREMOVE=y
+        CONFIG_BPF_TOOLCHAIN_BUILD_LLVM=y
+        # CONFIG_BPF_TOOLCHAIN_NONE is not set
+        CONFIG_BUILDBOT=y
+        CONFIG_BUILD_LOG=y
+        CONFIG_COLLECT_KERNEL_DEBUG=y
+        CONFIG_DWARVES=y
+        CONFIG_HAS_BPF_TOOLCHAIN=y
+        CONFIG_IB=y
+        CONFIG_IMAGEOPT=y
+        CONFIG_ISO_IMAGES=y
+        CONFIG_JSON_CYCLONEDX_SBOM=y
+        CONFIG_KERNEL_BPF_EVENTS=y
+        CONFIG_KERNEL_BPF_STREAM_PARSER=y
+        CONFIG_KERNEL_BUILD_DOMAIN="buildbot.infra.immortalwrt.org"
+        CONFIG_KERNEL_BUILD_USER="buildbot"
+        CONFIG_KERNEL_DEBUG_INFO_BTF=y
+        CONFIG_KERNEL_DEBUG_INFO_BTF_MODULES=y
+        # CONFIG_KERNEL_DEBUG_INFO_REDUCED is not set
+        CONFIG_KERNEL_FTRACE=y
+        CONFIG_KERNEL_KPROBES=y
+        CONFIG_KERNEL_KPROBE_EVENTS=y
+        CONFIG_KERNEL_MODULE_ALLOW_BTF_MISMATCH=y
+        CONFIG_KERNEL_PERF_EVENTS=y
+        CONFIG_KERNEL_XDP_SOCKETS=y
+        CONFIG_MAKE_TOOLCHAIN=y
+        CONFIG_PACKAGE_attendedsysupgrade-common=y
+        CONFIG_PACKAGE_kmod-e1000=y
+        CONFIG_PACKAGE_kmod-xdp-sockets-diag=m
+        CONFIG_PACKAGE_kselftests-bpf=m
+        CONFIG_PACKAGE_libbfd=m
+        CONFIG_PACKAGE_libbpf=m
+        CONFIG_PACKAGE_libbz2=m
+        CONFIG_PACKAGE_libctf=m
+        CONFIG_PACKAGE_libdw=m
+        CONFIG_PACKAGE_libelf=m
+        CONFIG_PACKAGE_libopcodes=m
+        CONFIG_PACKAGE_libpcap=m
+        CONFIG_PACKAGE_libxdp=m
+        CONFIG_PACKAGE_luci-app-attendedsysupgrade=y
+        CONFIG_PACKAGE_luci-i18n-attendedsysupgrade-zh-cn=y
+        CONFIG_PACKAGE_musl-fts=m
+        CONFIG_PACKAGE_objdump=m
+        CONFIG_PACKAGE_perf=m
+        CONFIG_PACKAGE_qosify=m
+        CONFIG_PACKAGE_rpcd-mod-rpcsys=y
+        CONFIG_PACKAGE_tc-tiny=m
+        CONFIG_PACKAGE_xdp-filter=m
+        CONFIG_PACKAGE_xdp-loader=m
+        CONFIG_PACKAGE_xdpdump=m
+        CONFIG_PACKAGE_zlib=m
+        CONFIG_QCOW2_IMAGES=y
+        CONFIG_TARGET_ALL_PROFILES=y
+        CONFIG_TARGET_ROOTFS_PARTSIZE=300
+        CONFIG_USE_LLVM_BUILD=y
+        CONFIG_VDI_IMAGES=y
+        CONFIG_VERSIONOPT=y
+        CONFIG_VERSION_BUG_URL=""
+        CONFIG_VERSION_CODE=""
+        CONFIG_VERSION_DIST="ImmortalWrt"
+        CONFIG_VERSION_FILENAMES=y
+        CONFIG_VERSION_HOME_URL=""
+        CONFIG_VERSION_HWREV=""
+        CONFIG_VERSION_MANUFACTURER=""
+        CONFIG_VERSION_MANUFACTURER_URL=""
+        CONFIG_VERSION_NUMBER=""
+        CONFIG_VERSION_PRODUCT=""
+        CONFIG_VERSION_REPO="https://downloads.immortalwrt.org/releases/${VERSION}"
+        CONFIG_VERSION_SUPPORT_URL=""
+        CONFIG_PACKAGE_luci-app-autoreboot=y
+        CONFIG_PACKAGE_luci-app-banip=y
+        CONFIG_PACKAGE_luci-app-homeproxy=y
+        CONFIG_PACKAGE_luci-app-nlbwmon=y
+        CONFIG_PACKAGE_luci-app-openclash=y
+        CONFIG_PACKAGE_luci-app-passwall=y
+        CONFIG_PACKAGE_luci-app-passwall_INCLUDE_Hysteria=y
+        CONFIG_PACKAGE_luci-app-upnp=y
+        CONFIG_PACKAGE_luci-app-zerotier=y
+        CONFIG_PACKAGE_luci-app-netdata=y
+        CONFIG_PACKAGE_luci-app-adblock-fast=y
+        CONFIG_PACKAGE_luci-app-ddns-go=y
+        CONFIG_PACKAGE_luci-app-wechatpush=y
+        CONFIG_PACKAGE_luci-app-lucky=y
+        CONFIG_PACKAGE_luci-app-fchomo=y
+        EOF
+
+    - name: Load custom configuration
+      run: |
+        cd openwrt
+        mkdir -p package/community
+        sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
+        pushd package/community 
+            git clone --depth 1  https://github.com/muink/openwrt-fchomo.git
+            git clone --depth 1  https://github.com/gdy666/luci-app-lucky.git
+        popd
+
+    - name: Download package
+      id: package
+      run: |
+        cd openwrt
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile the firmware
+      id: compile
+      run: |
+        cd openwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "status=success" >> $GITHUB_OUTPUT
+        grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
+        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+
+    - name: Upload bin directory
+      uses: actions/upload-artifact@main
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      with:
+        name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: openwrt/bin
+
+    - name: Organize files
+      id: organize
+      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      run: |
+        cd openwrt/bin/targets/*/*
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: Upload firmware directory
+      uses: actions/upload-artifact@main
+      if: steps.organize.outputs.status == 'success' && !cancelled()
+      with:
+        name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: ${{ env.FIRMWARE }}
