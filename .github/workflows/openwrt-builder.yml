@@ -1,5 +1,7 @@
 name: OpenWrt Builder
 
+permissions: write-all
+
 on:
   workflow_dispatch:
     inputs:
@@ -14,6 +16,7 @@ env:
   SOURCE_BRANCH: ${{ github.event.inputs.tag_name }}
   UPLOAD_BIN_DIR: true
   UPLOAD_FIRMWARE: true
+  ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
 
 jobs:
   build:
@@ -156,6 +159,38 @@ jobs:
         CONFIG_PACKAGE_luci-app-lucky=y
         CONFIG_PACKAGE_luci-app-fchomo=y
         EOF
+
+    - name: Make config        
+      run: |
+        cd openwrt
+        mkdir -p files/etc/uci-defaults
+        cat <<EOF > files/etc/uci-defaults/custom_config.sh
+        #!/bin/sh
+
+        # Read root password from the environment variable
+        root_password="${ROOT_PASSWORD}"
+
+        if [ -n "$root_password" ]; then
+        # Set root password
+        (echo "$root_password"; sleep 1; echo "$root_password") | passwd > /dev/null
+        else
+        echo "Root password not set. Exiting."
+        exit 1
+        fi
+
+        echo "Setting firewall zone input to ACCEPT"
+        uci set firewall.@zone[1].input='ACCEPT'
+        uci commit firewall
+
+        echo "Setting network ports"
+        uci set network.@device[0].ports='eth0 eth2 eth3'
+        uci commit network
+
+        echo "Configuration applied successfully"
+        EOF
+
+        # Make the script executable
+        sudo chmod +x files/etc/uci-defaults/custom_config.sh
 
     - name: Load custom configuration
       run: |
