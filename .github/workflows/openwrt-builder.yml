@@ -13,7 +13,7 @@ on:
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   TZ: Asia/Shanghai
-  SOURCE_BRANCH: ${{ github.event.inputs.tag_name }}
+  REPO_BRANCH: ${{ github.event.inputs.tag_name }}
   UPLOAD_BIN_DIR: true
   UPLOAD_FIRMWARE: true
   ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
@@ -51,7 +51,7 @@ jobs:
       working-directory: /workdir
       run: |
         df -hT $PWD
-        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        git clone $REPO_URL -b --single-branch  $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: Update feeds
