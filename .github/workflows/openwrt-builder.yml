@@ -3,11 +3,11 @@ name: OpenWrt Builder
 on:
   workflow_dispatch:
     inputs:
-        tag_name:
+      tag_name:
         description: 'Tag Name'
         required: true
         default: 'v23.05.4'
-
+        
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   TZ: Asia/Shanghai
