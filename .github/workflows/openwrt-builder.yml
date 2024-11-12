@@ -169,7 +169,8 @@ jobs:
     - name: Make uci-defaults        
       run: |
         cd openwrt
-        cat << "EOF" > /etc/uci-defaults/99-custom
+        mkdir -p etc/uci-defaults
+        cat << "EOF" > etc/uci-defaults/99-custom
         uci -q batch << EOI
         exec >/tmp/setup.log 2>&1
         root_password="${ROOT_PASSWORD}"
