@@ -233,3 +233,14 @@ jobs:
       with:
         name: OpenWrt_firmware
         path: ${{ env.FIRMWARE }}
+
+    - name: Upload from output to a remote server via FTP
+      uses: modern-dev/ftp-mirror@v2
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        user: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local_dir: ${{ env.FIRMWARE }}
+        remote_dir: "/openwrt"
+        delete: "true"
+        exclude_glob: "*efi.img.gz"
