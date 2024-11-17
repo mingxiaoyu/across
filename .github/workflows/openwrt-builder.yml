@@ -53,7 +53,14 @@ jobs:
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
-
+        
+    - name: Cache
+      uses: klever1988/cachewrtbuild@main
+      with:
+        ccache: 'true'
+        mixkey: 'x86_immortalwrt'
+        prefix: ${{ github.workspace }}/openwrt
+          
     - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a
 
@@ -159,6 +166,7 @@ jobs:
         CONFIG_PACKAGE_luci-app-zerotier=y
         CONFIG_PACKAGE_luci-app-lucky=y
         CONFIG_PACKAGE_luci-app-mihomo=y
+        CONFIG_PACKAGE_luci-app-fchomo=y
         EOF
         cat .config
 
@@ -177,7 +185,7 @@ jobs:
         uci set firewall.@zone[1].input='ACCEPT'
         uci commit firewall
         echo "Setting network ports"
-        uci set network.@device[0].ports='eth0 eth2 eth3'
+        uci set network.@device[0].ports='eth0' 'eth2' 'eth3'
         uci commit network
         echo "Configuration applied successfully"
         EOI
@@ -189,6 +197,7 @@ jobs:
         mkdir -p package/community
         sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
         pushd package/community 
+            git clone --depth 1  https://github.com/muink/openwrt-fchomo.git 
             git clone --depth 1  https://github.com/morytyann/OpenWrt-mihomo.git
             git clone --depth 1  https://github.com/gdy666/luci-app-lucky.git
         popd
@@ -233,14 +242,3 @@ jobs:
       with:
         name: OpenWrt_firmware
         path: ${{ env.FIRMWARE }}
-
-    - name: Upload from output to a remote server via FTP
-      uses: modern-dev/ftp-mirror@v2
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        user: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local_dir: ${{ env.FIRMWARE }}
-        remote_dir: "/openwrt"
-        delete: "true"
-        exclude_glob: "*efi.img.gz"
