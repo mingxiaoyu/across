@@ -1,0 +1,33 @@
+{
+    "version": 1,
+    "rules": [{
+            "domain_suffix": [
+                //ImmortalWrt 在线更新
+                "sysupgrade.kyarucloud.moe",
+                "immortalwrt.org",
+                "vsean.net",
+                //IPv6 测试
+                "test-ipv6.com",
+                "pushplus.plus",
+                //支付宝小程序
+                "95504test.com",
+                "infosysapps.com",
+                //infosys
+                "infosys.com",
+                "zscaler.net",
+                "zerotier.com",
+                "iqiyi.com",
+                "youku.com",
+                //某人的游戏
+                "huoyugame.com",
+                "ifytek.com",
+                "crl.verisign.com",
+                "ocsp.entrust.net",
+                "zhihu.com.dhcp",
+                "nvidia.com",
+                "sogou.com.dhcp"
+
+            ]
+        }
+    ]
+}
