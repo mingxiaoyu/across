@@ -151,7 +151,6 @@ jobs:
         # CONFIG_VHDX_IMAGES is not set
         # CONFIG_VMDK_IMAGES is not set
         CONFIG_PACKAGE_luci-app-adblock-fast=y
-        CONFIG_PACKAGE_luci-app-attendedsysupgrade=y
         CONFIG_PACKAGE_luci-app-autoreboot=y
         CONFIG_PACKAGE_luci-app-banip=y
         CONFIG_PACKAGE_luci-app-homeproxy=y
