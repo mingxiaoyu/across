@@ -204,7 +204,7 @@ jobs:
         uci commit firewall
         
         echo "Setting network ports"
-        uci set network.@device[0].ports='eth0' 'eth2' 'eth3'
+        uci set network.@device[0].ports='eth0 eth2 eth3'
         uci commit network
         echo "Configuration applied successfully"
         EOI
