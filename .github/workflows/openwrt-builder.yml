@@ -125,9 +125,11 @@ jobs:
         CONFIG_PACKAGE_libpcap=m
         CONFIG_PACKAGE_libxdp=m
         CONFIG_PACKAGE_nano=y
+        CONFIG_PACKAGE_owipcalc=y
+        CONFIG_PACKAGE_libowipcalc=y
         CONFIG_QCOW2_IMAGES=y
         CONFIG_TARGET_ALL_PROFILES=y
-        CONFIG_TARGET_ROOTFS_PARTSIZE=500
+        CONFIG_TARGET_ROOTFS_PARTSIZE=400
         CONFIG_USE_LLVM_BUILD=y
         CONFIG_VERSIONOPT=y
         CONFIG_VERSION_BUG_URL=""
@@ -163,9 +165,9 @@ jobs:
         CONFIG_PACKAGE_luci-app-zerotier=y
         CONFIG_PACKAGE_luci-app-lucky=y
         CONFIG_PACKAGE_luci-app-fchomo=y
+        CONFIG_PACKAGE_luci-app-mihomo=y
         EOF
         cat .config
-        #CONFIG_PACKAGE_luci-app-mihomo=y
 
     - name: Make uci-defaults        
       run: |
@@ -180,7 +182,27 @@ jobs:
         fi
         echo "Setting firewall zone input to ACCEPT"
         uci set firewall.@zone[1].input='ACCEPT'
+        
+        uci add firewall rule
+        uci set firewall.@rule[-1].name='Allow-Cloudflare-HTTP-IPv6'
+        uci set firewall.@rule[-1].src='*'
+        uci set firewall.@rule[-1].dest='lan'
+        uci set firewall.@rule[-1].proto='tcp'
+        uci set firewall.@rule[-1].dest_port='80 8080 8880 2052 2802 2086 2095'
+        uci set firewall.@rule[-1].family='ipv6'
+        uci set firewall.@rule[-1].target='ACCEPT'
+        
+        uci add firewall rule
+        uci set firewall.@rule[-1].name='Allow-Cloudflare-HTTPS-IPv6'
+        uci set firewall.@rule[-1].src='*'
+        uci set firewall.@rule[-1].dest='lan'
+        uci set firewall.@rule[-1].proto='tcp'
+        uci set firewall.@rule[-1].dest_port='443 2053 2083 2087 2096 8443'
+        uci set firewall.@rule[-1].family='ipv6'
+        uci set firewall.@rule[-1].target='ACCEPT'
+        
         uci commit firewall
+        
         echo "Setting network ports"
         uci set network.@device[0].ports='eth0' 'eth2' 'eth3'
         uci commit network
@@ -196,7 +218,7 @@ jobs:
         sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
         pushd package/community 
             git clone --depth 1  https://github.com/muink/openwrt-fchomo.git 
-            git clone --depth 1  https://github.com/morytyann/OpenWrt-mihomo.git
+            #git clone --depth 1  https://github.com/morytyann/OpenWrt-mihomo.git
             git clone --depth 1  https://github.com/gdy666/luci-app-lucky.git
         popd
 
