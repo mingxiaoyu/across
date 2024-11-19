@@ -41,6 +41,7 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         localDir: "./upload/"
         remoteDir: "/openwrt/"
+        options: "--delete"
         
     # - name: 📂 Sync files
     #   uses: SamKirkland/FTP-Deploy-Action@v4.3.5
