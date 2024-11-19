@@ -1,0 +1,44 @@
+name: FTP
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: 'The run ID for the artifact download'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/download-artifact@v4
+      name: down artifact
+      with:
+        name: OpenWrt_bin
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        repository: mingxiaoyu/across
+        run-id: ${{ github.event.inputs.run-id }} 
+
+    - name: move
+      run: |
+        mkdir upload
+        
+        find . -type f -name "*lucky*" -exec mv -n "{}" upload/ \;
+        find . -type f -name "*fchomo*" -exec mv -n "{}" upload/ \;
+        find . -type f -name "*mihomo*" -exec mv -n "{}" upload/ \;
+        find . -type f -name "*generic-ext4-combined-efi.img.gz" -exec mv -n "{}" upload/ \;
+
+    - name: Set up WARP
+      uses: fscarmen/warp-on-actions@v1.3
+ 
+    - name: 📂 Sync files
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        dangerous-clean-slate: true    
+        local-dir: ./upload/    
+        server-dir: /openwrt/
