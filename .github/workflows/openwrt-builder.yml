@@ -170,20 +170,19 @@ jobs:
         EOF
         cat .config
 
-    - name: Make uci-defaults        
+    - name: Make uci-defaults
       run: |
         cd openwrt
         mkdir -p files/etc/uci-defaults
-        cat << "EOF" > files/etc/uci-defaults/99-custom
-        uci -q batch << EOI
+        cat << EOF > files/etc/uci-defaults/99-custom
         exec >/tmp/setup.log 2>&1
         root_password="${ROOT_PASSWORD}"
-        if [ -n "$root_password" ]; then
-          (echo "$root_password"; sleep 1; echo "$root_password") | passwd > /dev/null
+        if [ -n "\$root_password" ]; then
+          (echo "\$root_password"; sleep 1; echo "\$root_password") | passwd > /dev/null
         fi
         echo "Setting firewall zone input to ACCEPT"
         uci set firewall.@zone[1].input='ACCEPT'
-        
+    
         uci add firewall rule
         uci set firewall.@rule[-1].name='Allow-Cloudflare-HTTP-IPv6'
         uci set firewall.@rule[-1].src='*'
@@ -192,7 +191,7 @@ jobs:
         uci set firewall.@rule[-1].dest_port='80 8080 8880 2052 2802 2086 2095'
         uci set firewall.@rule[-1].family='ipv6'
         uci set firewall.@rule[-1].target='ACCEPT'
-        
+    
         uci add firewall rule
         uci set firewall.@rule[-1].name='Allow-Cloudflare-HTTPS-IPv6'
         uci set firewall.@rule[-1].src='*'
@@ -201,14 +200,13 @@ jobs:
         uci set firewall.@rule[-1].dest_port='443 2053 2083 2087 2096 8443'
         uci set firewall.@rule[-1].family='ipv6'
         uci set firewall.@rule[-1].target='ACCEPT'
-        
+    
         uci commit firewall
-        
+    
         echo "Setting network ports"
         uci set network.@device[0].ports='eth0 eth2 eth3'
         uci commit network
         echo "Configuration applied successfully"
-        EOI
         EOF
         sudo chmod -R 775 files
 
