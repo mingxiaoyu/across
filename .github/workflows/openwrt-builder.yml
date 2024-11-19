@@ -230,6 +230,10 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
+    - name: Display Run ID
+      run: |
+        echo "The Run ID is: ${{ github.run_id }}"
+      
     - name: Compile the firmware
       id: compile
       run: |
