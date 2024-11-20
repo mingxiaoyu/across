@@ -51,5 +51,8 @@ DOMAIN-SUFFIX,zhihu.com.dhcp
 DOMAIN-SUFFIX,nvidia.com
 DOMAIN-SUFFIX,sogou.com.dhcp
 
-#zscaler.net
+# zscaler.net
 DOMAIN-SUFFIX,zscaler.net
+
+# 飞牛OS
+DOMAIN-SUFFIX,5ddd.com
