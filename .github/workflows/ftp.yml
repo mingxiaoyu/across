@@ -38,9 +38,8 @@ jobs:
       id: zerotier
       with:
         auth_token: ${{ secrets.ZEROTIER_CENTRAL_TOKEN }}
-        ip: '192.168.43.210'
+        ip: '192.168.192.123'
         name: 'Github Client'
-
         
     - name: 📂 Sync files
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
