@@ -21,7 +21,7 @@ jobs:
         repository: mingxiaoyu/across
         run-id: ${{ github.event.inputs.run-id }} 
 
-    - name: move
+    - name: Organization
       run: |
         mkdir upload
         
@@ -30,25 +30,24 @@ jobs:
         find . -type f -name "*mihomo*" -exec mv -n "{}" upload/ \;
         find . -type f -name "*generic-ext4-combined-efi.img.gz" -exec mv -n "{}" upload/ \;
 
-    - name: Set up WARP
-      uses: fscarmen/warp-on-actions@v1.3
-
-    - name: Upload ftp
-      uses: sebastianpopp/ftp-action@releases/v2
+    - uses: zerotier/github-action@v1.0.1
       with:
-        host: ${{ secrets.FTP_SERVER }}
-        user: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        localDir: "./upload/"
-        remoteDir: "/openwrt/"
-        options: "--delete"
+        network_id: ${{ secrets.ZEROTIER_NETWORK_ID }}
+        auth_token: ${{ secrets.ZEROTIER_CENTRAL_TOKEN }}
+    - uses: kildom/zerotier-management-action@v1.0.0
+      id: zerotier
+      with:
+        auth_token: ${{ secrets.ZEROTIER_CENTRAL_TOKEN }}
+        ip: '192.168.43.210'
+        name: 'Github Client'
+
         
-    # - name: 📂 Sync files
-    #   uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-    #   with:
-    #     server: ${{ secrets.FTP_SERVER }}
-    #     username: ${{ secrets.FTP_USERNAME }}
-    #     password: ${{ secrets.FTP_PASSWORD }}
-    #     dangerous-clean-slate: true    
-    #     local-dir: ./upload/    
-    #     server-dir: /openwrt/
+    - name: 📂 Sync files
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: 192.168.3.197
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        dangerous-clean-slate: true    
+        local-dir: ./upload/    
+        server-dir: /openwrt/
