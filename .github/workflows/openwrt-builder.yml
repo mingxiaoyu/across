@@ -200,6 +200,15 @@ jobs:
         uci set firewall.@rule[-1].dest_port='443 2053 2083 2087 2096 8443'
         uci set firewall.@rule[-1].family='ipv6'
         uci set firewall.@rule[-1].target='ACCEPT'
+
+        uci add firewall rule
+        uci set firewall.@rule[-1].name='Allow-NAS-WebDAV'
+        uci set firewall.@rule[-1].src='*'
+        uci set firewall.@rule[-1].dest='lan'
+        uci set firewall.@rule[-1].proto='tcp udp'
+        uci set firewall.@rule[-1].dest_port='5005 5006'
+        uci set firewall.@rule[-1].family='ipv6'
+        uci set firewall.@rule[-1].target='ACCEPT'
         
         uci commit firewall
     
