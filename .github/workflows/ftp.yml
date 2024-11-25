@@ -28,6 +28,7 @@ jobs:
         find . -type f -name "*lucky*" -exec mv -n "{}" upload/ \;
         find . -type f -name "*fchomo*" -exec mv -n "{}" upload/ \;
         find . -type f -name "*mihomo*" -exec mv -n "{}" upload/ \;
+        find . -type f -name "*nlbwmon*" -exec mv -n "{}" upload/ \;
         find . -type f -name "*generic-ext4-combined-efi.img.gz" -exec mv -n "{}" upload/ \;
 
     - uses: zerotier/github-action@v1.0.1
