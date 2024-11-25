@@ -74,7 +74,7 @@ jobs:
         -		database_update(gdbh, r);
         +	int err = 0;
         +	err = database_insert(gdbh, r);
-        +	if (err < 0) fprintf(stderr, "failed to insert, count %lld, err %d\n", r->count, err);
+        +	if (err < 0) printf(stderr, "failed to insert, count %llu, err %d\n", (unsigned long long)r->count, err);
          }
          
          static void
