@@ -95,7 +95,7 @@ jobs:
         fi
         
         # Move the IPK files to the upload folder
-        find . -type f -name "*nlbwmon*" -exec mv -n "{}" upload/ \;
+        find ./bin -type f -name "*nlbwmon*" -exec mv -n "{}" upload/ \;
 
         # Set the current timestamp for file naming
         echo "FILE_DATE=$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
