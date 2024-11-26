@@ -1,0 +1,43 @@
+name: Upload file to NAS
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'The URL for download'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download files from URL
+      run: |
+        URL="${{ github.event.inputs.url }}"
+
+        mkdir -p download
+
+        wget "$URL" -P download/
+
+    - uses: zerotier/github-action@v1.0.1
+      with:
+        network_id: ${{ secrets.ZEROTIER_NETWORK_ID }}
+        auth_token: ${{ secrets.ZEROTIER_CENTRAL_TOKEN }}
+
+    - uses: kildom/zerotier-management-action@v1.0.0
+      id: zerotier
+      with:
+        auth_token: ${{ secrets.ZEROTIER_CENTRAL_TOKEN }}
+        ip: '192.168.192.123'
+        name: 'Github Client'
+        
+    - name: 📂 Sync files to FTP server
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: 192.168.3.197
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./download/    
+        server-dir: /download/
