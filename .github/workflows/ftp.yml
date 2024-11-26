@@ -48,6 +48,5 @@ jobs:
         server: 192.168.3.197
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        dangerous-clean-slate: true    
         local-dir: ./upload/    
         server-dir: /openwrt/
