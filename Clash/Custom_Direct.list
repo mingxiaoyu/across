@@ -58,3 +58,5 @@ DOMAIN-SUFFIX,zscaler.net
 DOMAIN-SUFFIX,5ddd.com
 DOMAIN-SUFFIX,fnnas.com
 DOMAIN-SUFFIX,fnos.net
+
+DOMAIN-SUFFIX,ns.cloudflare.com
