@@ -58,8 +58,17 @@ clean_firewall() {
     sudo iptables -X       # 删除所有自定义链
     sudo iptables -t nat -X # 删除所有自定义 NAT 链
     sudo iptables -t mangle -X # 删除所有自定义 Mangle 链
+
+    sudo ip6tables -F       # 清除所有规则
+    sudo ip6tables -t nat -F # 清除所有 NAT 表规则
+    sudo ip6tables -t mangle -F # 清除所有 Mangle 表规则
+    sudo ip6tables -X       # 删除所有自定义链
+    sudo ip6tables -t nat -X # 删除所有自定义 NAT 链
+    sudo ip6tables -t mangle -X # 删除所有自定义 Mangle 链
+    
     sudo systemctl stop nftables
     sudo systemctl disable nftables
+    sudo apt-get purge netfilter-persistent
 }
 
 # 添加 Warp
