@@ -59,5 +59,10 @@ DOMAIN-SUFFIX,5ddd.com
 DOMAIN-SUFFIX,fnnas.com
 DOMAIN-SUFFIX,fnos.net
 
-DOMAIN-SUFFIX,ns.cloudflare.com
+#Cloudflare
+DOMAIN-SUFFIX,cloudflare.com
+DOMAIN-SUFFIX,cloudflarepartners.com
+DOMAIN-SUFFIX,cloudflarewarp.com
+DOMAIN-SUFFIX,visa.cn
+DOMAIN-SUFFIX,visa.com.hk
 DOMAIN-SUFFIX,090227.xyz
