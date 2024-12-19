@@ -139,6 +139,7 @@ jobs:
         CONFIG_PACKAGE_kmod-nft-socket=y
         CONFIG_PACKAGE_kmod-nft-tproxy=y
         CONFIG_PACKAGE_kmod-tun=y
+        CONFIG_PACKAGE_kmod-ipt-nat6=y
         CONFIG_PACKAGE_kmod-xdp-sockets-diag=m
         CONFIG_PACKAGE_kselftests-bpf=m
         CONFIG_PACKAGE_libbfd=m
