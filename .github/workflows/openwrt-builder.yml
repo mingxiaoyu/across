@@ -290,8 +290,17 @@ jobs:
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
         cd openwrt/bin/targets/*/*
-        rm -rf packages
-        find . -type f -name 'immortalwrt*' ! -name '*-efi*' -exec rm -f {} \;
+        
+        mkdir upload
+        
+        find . -type f -name "*lucky*" -exec mv -n "{}" upload/ \;
+        find . -type f -name "*fchomo*" -exec mv -n "{}" upload/ \;
+        find . -type f -name "*mihomo*" -exec mv -n "{}" upload/ \;
+        find . -type f -name "*nlbwmon*" -exec mv -n "{}" upload/ \;
+        find . -type f -name "*generic-ext4-combined-efi.img.gz" -exec mv -n "{}" upload/ \;
+        find . -type f -name "*x86-64-generic-image-efi.iso" -exec mv -n "{}" upload/ \;
+        
+        cd upload
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
