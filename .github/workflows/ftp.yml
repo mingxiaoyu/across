@@ -32,7 +32,7 @@ jobs:
         find . -type f -name "*generic-ext4-combined-efi.img.gz" -exec mv -n "{}" upload/ \;
 
     - name: Upload firmware to release
-      uses: softprops/action-gh-release@v2.2.0
+      uses: softprops/action-gh-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
