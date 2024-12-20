@@ -31,6 +31,16 @@ jobs:
         find . -type f -name "*nlbwmon*" -exec mv -n "{}" upload/ \;
         find . -type f -name "*generic-ext4-combined-efi.img.gz" -exec mv -n "{}" upload/ \;
 
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@v2.2.0
+      if: steps.organize.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v1.0
+        body: 自用的，密码也不是默认的。别下载
+        files: upload/*
+        
     - uses: zerotier/github-action@v1.0.1
       with:
         network_id: ${{ secrets.ZEROTIER_NETWORK_ID }}
@@ -50,3 +60,5 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./upload/    
         server-dir: /openwrt/
+      continue-on-error: true
+      
