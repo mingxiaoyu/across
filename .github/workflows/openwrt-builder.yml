@@ -154,6 +154,10 @@ jobs:
         CONFIG_PACKAGE_nano=y
         CONFIG_PACKAGE_owipcalc=y
         CONFIG_PACKAGE_libowipcalc=y
+        CONFIG_PACKAGE_gawk=y
+        CONFIG_PACKAGE_grep=y
+        CONFIG_PACKAGE_sed=y
+        CONFIG_PACKAGE_coreutils-sort=y
         CONFIG_QCOW2_IMAGES=y
         CONFIG_TARGET_ALL_PROFILES=y
         CONFIG_TARGET_ROOTFS_PARTSIZE=400
