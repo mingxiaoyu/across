@@ -195,6 +195,7 @@ jobs:
         CONFIG_PACKAGE_luci-app-upnp=y
         CONFIG_PACKAGE_luci-app-wechatpush=y
         CONFIG_PACKAGE_luci-app-zerotier=y
+        CONFIG_PACKAGE_luci-app-vlmcsd=y
         CONFIG_PACKAGE_luci-app-lucky=y
         CONFIG_PACKAGE_luci-app-fchomo=y
         CONFIG_PACKAGE_luci-app-mihomo=y
