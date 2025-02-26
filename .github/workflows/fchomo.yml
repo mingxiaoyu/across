@@ -58,7 +58,7 @@ jobs:
         ./scripts/feeds install -a
 
         # Clone the openwrt-fchomo package
-        git clone --depth 1 --branch master --single-branch --no-checkout https://github.com/muink/openwrt-fchomo.git package/openwrt-fchomo
+        git clone --depth 1 --branch master --single-branch --no-checkout https://github.com/fcshark-org/openwrt-fchomo.git package/openwrt-fchomo
         pushd package/openwrt-fchomo
         umask 022
         git checkout master  # Make sure you're on the right branch or commit
