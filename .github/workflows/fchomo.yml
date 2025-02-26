@@ -85,7 +85,7 @@ jobs:
         echo "FILE_DATE=$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
     - name: Upload bin directory
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: IPK-${{ env.FILE_DATE }}
         path: upload
