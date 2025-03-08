@@ -66,3 +66,7 @@ DOMAIN-SUFFIX,cloudflarewarp.com
 DOMAIN-SUFFIX,visa.cn
 DOMAIN-SUFFIX,visa.com.hk
 DOMAIN-SUFFIX,090227.xyz
+
+#DNS
+DOMAIN-SUFFIX,dns.pub
+DOMAIN-SUFFIX,dns.alidns.com
