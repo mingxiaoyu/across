@@ -50,6 +50,7 @@ DOMAIN-SUFFIX,ocsp.entrust.net
 DOMAIN-SUFFIX,zhihu.com.dhcp
 DOMAIN-SUFFIX,nvidia.com
 DOMAIN-SUFFIX,sogou.com.dhcp
+DOMAIN-SUFFIX,leijing1.com
 
 # zscaler.net
 DOMAIN-SUFFIX,zscaler.net
