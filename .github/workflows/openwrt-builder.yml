@@ -215,9 +215,9 @@ jobs:
         echo "Setting firewall zone input to ACCEPT"
         uci set firewall.@zone[1].input='ACCEPT'
 
-        if ! uci show firewall | grep -q "Allow-Cloudflare-HTTP-IPv6"; then
+        if ! uci show firewall | grep -q "Allow-Cloudflare-HTTP-IPv6-Forward"; then
           uci add firewall rule
-          uci set firewall.@rule[-1].name='Allow-Cloudflare-HTTP-IPv6'
+          uci set firewall.@rule[-1].name='Allow-Cloudflare-HTTP-IPv6-Forward'
           uci set firewall.@rule[-1].src='*'
           uci set firewall.@rule[-1].dest='lan'
           uci set firewall.@rule[-1].proto='tcp'
@@ -226,9 +226,9 @@ jobs:
           uci set firewall.@rule[-1].target='ACCEPT'
         fi
         
-        if ! uci show firewall | grep -q "Allow-Cloudflare-HTTPS-IPv6"; then
+        if ! uci show firewall | grep -q "Allow-Cloudflare-HTTPS-IPv6-Forward"; then
             uci add firewall rule
-            uci set firewall.@rule[-1].name='Allow-Cloudflare-HTTPS-IPv6'
+            uci set firewall.@rule[-1].name='Allow-Cloudflare-HTTPS-IPv6-Forward'
             uci set firewall.@rule[-1].src='*'
             uci set firewall.@rule[-1].dest='lan'
             uci set firewall.@rule[-1].proto='tcp'
@@ -237,13 +237,23 @@ jobs:
             uci set firewall.@rule[-1].target='ACCEPT'
         fi
 
-        if ! uci show firewall | grep -q "Allow-NAS-WebDAV"; then
+        if ! uci show firewall | grep -q "Allow-NAS-WebDAV-Forward"; then
             uci add firewall rule
-            uci set firewall.@rule[-1].name='Allow-NAS-WebDAV'
+            uci set firewall.@rule[-1].name='Allow-NAS-WebDAV-Forward'
             uci set firewall.@rule[-1].src='*'
             uci set firewall.@rule[-1].dest='lan'
             uci set firewall.@rule[-1].proto='tcp udp'
             uci set firewall.@rule[-1].dest_port='5005 5006'
+            uci set firewall.@rule[-1].family='ipv6'
+            uci set firewall.@rule[-1].target='ACCEPT'
+        fi
+
+        if ! uci show firewall | grep -q "Allow-Cloudflare-HTTPS-IPv6-Input"; then
+            uci add firewall rule
+            uci set firewall.@rule[-1].name=Allow-Cloudflare-HTTPS-IPv6-Input'
+            uci set firewall.@rule[-1].src='wan'
+            uci set firewall.@rule[-1].proto='tcp udp'
+            uci set firewall.@rule[-1].dest_port='443 2053 2083 2087 2096 8443'
             uci set firewall.@rule[-1].family='ipv6'
             uci set firewall.@rule[-1].target='ACCEPT'
         fi
