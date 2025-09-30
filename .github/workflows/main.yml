@@ -1,0 +1,261 @@
+
+name: OpenWrt Builder
+
+permissions: write-all
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag Name'
+        required: true
+        default: 'v23.05.4'
+        
+env:
+  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  TZ: Asia/Shanghai
+  REPO_BRANCH: ${{ github.event.inputs.tag_name }}
+  UPLOAD_BIN_DIR: true
+  UPLOAD_FIRMWARE: true
+  ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+              bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
+              g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+              libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
+              libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano \
+              ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
+              python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
+              upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    - name: Clone source code
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+        
+    - name: Cache
+      uses: klever1988/cachewrtbuild@main
+      with:
+        ccache: 'true'
+        mixkey: 'x86_immortalwrt'
+        prefix: ${{ github.workspace }}/openwrt
+          
+    - name: Update feeds
+      run: cd openwrt && ./scripts/feeds update -a
+
+    - name: Install feeds
+      run: cd openwrt && ./scripts/feeds install -a
+
+    - name: Patch nlbwmon
+      run: |
+        cd openwrt
+        mkdir -p feeds/packages/net/nlbwmon/patches
+
+        cat <<EOF > feeds/packages/net/nlbwmon/patches/00.patch
+        Index: nlbwmon-2024-02-21-c7616bcf/nfnetlink.c
+        ===================================================================
+        --- nlbwmon-2024-02-21-c7616bcf.orig/nfnetlink.c
+        +++ nlbwmon-2024-02-21-c7616bcf/nfnetlink.c
+        @@ -78,10 +78,9 @@ struct delayed_record {
+         static void
+         database_insert_immediately(struct record *r)
+         {
+        -	if (r->count != 0)
+        -		database_insert(gdbh, r);
+        -	else
+        -		database_update(gdbh, r);
+        +	int err = 0;
+        +	err = database_insert(gdbh, r);
+        +	if (err < 0) fprintf(stderr, "failed to insert, count %llu, err %d\n", (unsigned long long)r->count, err);
+         }
+         
+         static void
+        EOF
+        
+    - name: Make config
+      run: |
+        cd openwrt
+        VERSION=${{ github.event.inputs.tag_name }}
+        VERSION=${VERSION//v/}  # This removes the 'v' from the tag name
+        cat <<EOF > .config
+        CONFIG_TARGET_x86=y
+        CONFIG_TARGET_x86_64=y
+        CONFIG_TARGET_MULTI_PROFILE=y
+        CONFIG_TARGET_DEVICE_x86_64_DEVICE_generic=y
+        CONFIG_TARGET_DEVICE_PACKAGES_x86_64_DEVICE_generic=""
+        CONFIG_ALL_KMODS=y
+        CONFIG_ALL_NONSHARED=y
+        CONFIG_DEVEL=y
+        CONFIG_TARGET_PER_DEVICE_ROOTFS=y
+        CONFIG_AUTOREMOVE=y
+        CONFIG_BPF_TOOLCHAIN_BUILD_LLVM=y
+        # CONFIG_BPF_TOOLCHAIN_NONE is not set
+        CONFIG_BUILDBOT=y
+        CONFIG_BUILD_LOG=y
+        CONFIG_DWARVES=y
+        CONFIG_HAS_BPF_TOOLCHAIN=y
+        CONFIG_IMAGEOPT=y
+        CONFIG_ISO_IMAGES=y
+        CONFIG_JSON_CYCLONEDX_SBOM=y
+        CONFIG_KERNEL_BPF_EVENTS=y
+        CONFIG_KERNEL_BPF_STREAM_PARSER=y
+        CONFIG_KERNEL_BUILD_DOMAIN="buildbot.infra.immortalwrt.org"
+        CONFIG_KERNEL_BUILD_USER="buildbot"
+        CONFIG_KERNEL_FTRACE=y
+        CONFIG_KERNEL_KPROBES=y
+        CONFIG_KERNEL_KPROBE_EVENTS=y
+        CONFIG_KERNEL_MODULE_ALLOW_BTF_MISMATCH=y
+        CONFIG_KERNEL_PERF_EVENTS=y
+        CONFIG_KERNEL_XDP_SOCKETS=y
+        CONFIG_LIBSODIUM_MINIMAL=y
+        CONFIG_MBEDTLS_NIST_KW_C=y
+        CONFIG_MBEDTLS_RSA_NO_CRT=y
+        CONFIG_PACKAGE_kmod-e1000=y
+        CONFIG_PACKAGE_kmod-inet-diag=y
+        CONFIG_PACKAGE_kmod-netlink-diag=y
+        CONFIG_PACKAGE_kmod-nf-socket=y
+        CONFIG_PACKAGE_kmod-nf-tproxy=y
+        CONFIG_PACKAGE_kmod-nft-socket=y
+        CONFIG_PACKAGE_kmod-nft-tproxy=y
+        CONFIG_PACKAGE_kmod-tun=y
+        CONFIG_PACKAGE_kmod-ipt-nat6=y
+        CONFIG_PACKAGE_kmod-xdp-sockets-diag=m
+        CONFIG_PACKAGE_kselftests-bpf=m
+        CONFIG_PACKAGE_libbfd=m
+        CONFIG_PACKAGE_libbpf=y
+        CONFIG_PACKAGE_libbz2=m
+        CONFIG_PACKAGE_libctf=m 
+        CONFIG_PACKAGE_libdw=m
+        CONFIG_PACKAGE_libelf=y
+        CONFIG_PACKAGE_libopcodes=m
+        CONFIG_PACKAGE_libpcap=m
+        CONFIG_PACKAGE_libxdp=m
+        CONFIG_PACKAGE_nano=y
+        CONFIG_PACKAGE_owipcalc=y
+        CONFIG_PACKAGE_libowipcalc=y
+        CONFIG_PACKAGE_gawk=y
+        CONFIG_PACKAGE_grep=y
+        CONFIG_PACKAGE_sed=y
+        CONFIG_PACKAGE_coreutils-sort=y
+        CONFIG_QCOW2_IMAGES=y
+        CONFIG_TARGET_ALL_PROFILES=y
+        CONFIG_TARGET_ROOTFS_PARTSIZE=500
+        EOF
+        cat .config
+
+    - name: Make uci-defaults
+      run: |
+        cd openwrt
+        mkdir -p files/etc/uci-defaults
+        cat << EOF > files/etc/uci-defaults/99-custom
+        exec >/tmp/setup.log 2>&1
+        root_password="${ROOT_PASSWORD}"
+        if [ -n "\$root_password" ]; then
+          (echo "\$root_password"; sleep 1; echo "\$root_password") | passwd > /dev/null
+        fi
+        echo "Setting firewall zone input to ACCEPT"
+        uci set firewall.@zone[1].input='ACCEPT'
+
+        if ! uci show firewall | grep -q "Allow-Cloudflare-HTTP-IPv6-Forward"; then
+          uci add firewall rule
+          uci set firewall.@rule[-1].name='Allow-Cloudflare-HTTP-IPv6-Forward'
+          uci set firewall.@rule[-1].src='*'
+          uci set firewall.@rule[-1].dest='lan'
+          uci set firewall.@rule[-1].proto='tcp'
+          uci set firewall.@rule[-1].dest_port='80 8080 8880 2052 2802 2086 2095'
+          uci set firewall.@rule[-1].family='ipv6'
+          uci set firewall.@rule[-1].target='ACCEPT'
+        fi
+        
+        if ! uci show firewall | grep -q "Allow-Cloudflare-HTTPS-IPv6-Forward"; then
+            uci add firewall rule
+            uci set firewall.@rule[-1].name='Allow-Cloudflare-HTTPS-IPv6-Forward'
+            uci set firewall.@rule[-1].src='*'
+            uci set firewall.@rule[-1].dest='lan'
+            uci set firewall.@rule[-1].proto='tcp'
+            uci set firewall.@rule[-1].dest_port='443 2053 2083 2087 2096 8443'
+            uci set firewall.@rule[-1].family='ipv6'
+            uci set firewall.@rule[-1].target='ACCEPT'
+        fi
+
+        if ! uci show firewall | grep -q "Allow-NAS-WebDAV-Forward"; then
+            uci add firewall rule
+            uci set firewall.@rule[-1].name='Allow-NAS-WebDAV-Forward'
+            uci set firewall.@rule[-1].src='*'
+            uci set firewall.@rule[-1].dest='lan'
+            uci set firewall.@rule[-1].proto='tcp udp'
+            uci set firewall.@rule[-1].dest_port='5005 5006'
+            uci set firewall.@rule[-1].family='ipv6'
+            uci set firewall.@rule[-1].target='ACCEPT'
+        fi
+
+        if ! uci show firewall | grep -q "Allow-Cloudflare-HTTPS-IPv6-Input"; then
+            uci add firewall rule
+            uci set firewall.@rule[-1].name=Allow-Cloudflare-HTTPS-IPv6-Input'
+            uci set firewall.@rule[-1].src='wan'
+            uci set firewall.@rule[-1].proto='tcp udp'
+            uci set firewall.@rule[-1].dest_port='443 2053 2083 2087 2096 8443'
+            uci set firewall.@rule[-1].family='ipv6'
+            uci set firewall.@rule[-1].target='ACCEPT'
+        fi
+        
+        uci commit firewall
+    
+        echo "Setting network ports"
+        uci set network.@device[0].ports='eth0 eth2 eth3'
+        uci commit network
+        echo "Configuration applied successfully"
+        EOF
+        sudo chmod -R 775 files
+
+    - name: Load custom configuration
+      run: |
+        cd openwrt
+        sed -i 's/192.168.1.1/192.168.3.1/g' package/base-files/files/bin/config_generate
+
+    - name: Download package
+      id: package
+      run: |
+        cd openwrt
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Display Run ID
+      run: |
+        echo "The Run ID is: ${{ github.run_id }}"
+      
+    - name: Compile the firmware
+      id: compile
+      run: |
+        cd openwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "status=success" >> $GITHUB_OUTPUT
+ 
+
+ 
+        
