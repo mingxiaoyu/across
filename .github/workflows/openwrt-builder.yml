@@ -199,6 +199,7 @@ jobs:
         CONFIG_PACKAGE_luci-app-fchomo=y
         CONFIG_PACKAGE_luci-app-mihomo=y
         CONFIG_PACKAGE_luci-app-adguardhome=y
+        CONFIG_PACKAGE_luci-app-diskman=y
         EOF
         cat .config
 
