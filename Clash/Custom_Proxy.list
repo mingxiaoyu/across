@@ -7,10 +7,3 @@ DOMAIN-SUFFIX,services.googleapis.cn
 DOMAIN-SUFFIX,wiki.metacubex.one
 DOMAIN-SUFFIX,rutracker.org
 DOMAIN-SUFFIX,githubusercontent.com
-# K8S
-DOMAIN-SUFFIX,k8s.gcr.io
-DOMAIN-SUFFIX,registry.k8s.io
-DOMAIN-SUFFIX,gcr.io
-DOMAIN-SUFFIX,quay.io
-DOMAIN-SUFFIX,k8s.io
-DOMAIN-SUFFIX,pkg.dev
