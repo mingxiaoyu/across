@@ -13,3 +13,4 @@ DOMAIN-SUFFIX,registry.k8s.io
 DOMAIN-SUFFIX,gcr.io
 DOMAIN-SUFFIX,quay.io
 DOMAIN-SUFFIX,k8s.io
+DOMAIN-SUFFIX,pkg.dev
