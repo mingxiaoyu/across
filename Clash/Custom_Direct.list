@@ -61,7 +61,6 @@ DOMAIN-SUFFIX,fnnas.com
 DOMAIN-SUFFIX,fnos.net
 
 #Cloudflare
-DOMAIN-SUFFIX,cloudflare.com
 DOMAIN-SUFFIX,speed.mingxiaoyu.dns-dynamic.net
 DOMAIN-SUFFIX,cloudflarepartners.com
 DOMAIN-SUFFIX,cloudflarewarp.com
