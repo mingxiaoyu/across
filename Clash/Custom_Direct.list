@@ -1,6 +1,8 @@
 # NAME: Custom_Direct
 # 强制直连列表
 
+PROCESS-NAME,xray
+
 # ImmortalWrt 在线更新
 DOMAIN-SUFFIX,sysupgrade.kyarucloud.moe
 
