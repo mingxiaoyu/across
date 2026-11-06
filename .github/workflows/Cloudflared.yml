@@ -95,22 +95,10 @@ jobs:
 
           cd "$SDK_DIR"
 
-          # Find the Go toolchain directory used by golang-package.mk
-          shopt -s nullglob
+          # Go installation directory expected by OpenWrt golang-package.mk
+          GO_ROOT="$SDK_DIR/staging_dir/hostpkg/lib/go"
 
-          GO_ROOTS=(
-            "$SDK_DIR"/staging_dir/hostpkg/lib/go-*
-          )
-
-          if [ "${#GO_ROOTS[@]}" -ne 1 ]; then
-            echo "ERROR: Expected exactly one SDK Host Go directory"
-            printf '%s\n' "${GO_ROOTS[@]}"
-            exit 1
-          fi
-
-          GO_ROOT="${GO_ROOTS[0]}"
-
-          echo "Replacing SDK Go directory: $GO_ROOT"
+          echo "Installing Go into: $GO_ROOT"
 
           # Download official Go release
           GO_ARCHIVE="go${GO_VERSION}.linux-amd64.tar.gz"
@@ -136,7 +124,7 @@ jobs:
           echo "$GO_SHA256  $RUNNER_TEMP/$GO_ARCHIVE" |
             sha256sum -c -
 
-          # Replace SDK Host Go installation
+          # Install Go
           rm -rf "$GO_ROOT"
           mkdir -p "$GO_ROOT"
 
