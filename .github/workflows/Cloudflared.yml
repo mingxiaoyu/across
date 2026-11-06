@@ -68,6 +68,14 @@ jobs:
         # definition already vendored in this repository at ./cloudflared
         cp -r "$REPO_ROOT/cloudflared" package/cloudflared
 
+        # Fix Go package framework include path
+        sed -i \
+            's|^include ../../lang/golang/golang-package.mk|include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk|' \
+            package/cloudflared/Makefile
+        
+        # Verify
+        grep -n 'golang-package.mk' package/cloudflared/Makefile
+        
         # Configure package to be built
         echo "CONFIG_PACKAGE_cloudflared=y" >> .config
 
