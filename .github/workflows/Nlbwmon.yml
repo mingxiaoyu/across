@@ -94,11 +94,20 @@ jobs:
           mkdir -p upload
         fi
         
-        # Move the IPK files to the upload folder
-        find ./bin -type f -name "*nlbwmon*" -exec mv -n "{}" upload/ \;
+        # 尝试搬运(bin 存在则优先用，不存在则全局搜）
+        if [ -d "./bin" ]; then
+          find ./bin -type f -name "*nlbwmon*" -exec mv -n "{}" upload/ \;
+        else
+          echo "⚠️ ./bin 不存在，改用全局搜索 .ipk..."
+          find . -type f -name "*nlbwmon*.ipk" -exec mv -n "{}" upload/ \; 2>/dev/null || true
+        fi
 
-        # Set the current timestamp for file naming
-        echo "FILE_DATE=$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+        # 确认结果
+        echo "📦 upload 目录内容："
+        ls -lh upload/ || echo "⚠️ upload 为空，未找到 nlbwmon 产物"
+
+        # 时间戳
+        echo "FILE_DATE=$(date +"%Y%m%d%H%M")" >> "$GITHUB_ENV"
 
     - name: Upload bin directory
       uses: actions/upload-artifact@v7
