@@ -6,107 +6,242 @@ on:
 env:
   TZ: Asia/Shanghai
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-24.04
 
+    env:
+      SDK_VERSION: 24.10.3
+      GO_VERSION: 1.27.3
+      SDK_ARCHIVE: immortalwrt-sdk-24.10.3-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      SDK_URL: https://downloads.immortalwrt.org/releases/24.10.3/targets/x86/64
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Initialize build environment
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        sudo -E apt-get -qq update
-        sudo -E apt-get -qq install autoconf automake autopoint binutils bison build-essential bzip2 \
-          ccache cmake cpio curl device-tree-compiler flex gawk gettext \
-          gcc-multilib g++-multilib git libgnutls28-dev gperf intltool \
-          libc6-dev-i386 libelf-dev libglib2.0-dev libgmp-dev libltdl-dev \
-          libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev \
-          libssl-dev libtool zlib1g-dev ninja-build p7zip p7zip-full patch \
-          pkgconf python3 python3-pyelftools rsync squashfs-tools swig unzip vim wget zstd
-        sudo -E apt-get -qq autoremove --purge
-        sudo -E apt-get -qq clean
-        sudo timedatectl set-timezone "$TZ"
-        sudo mkdir -p /upload
-        sudo chown $USER:$GROUPS /upload
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            flex \
+            bison \
+            g++ \
+            gawk \
+            gcc-multilib \
+            g++-multilib \
+            gettext \
+            git \
+            libncurses-dev \
+            libssl-dev \
+            rsync \
+            unzip \
+            zlib1g-dev \
+            file \
+            wget \
+            curl \
+            jq \
+            zstd
 
-    - name: Compile the firmware
-      id: compile
-      run: |
-        # Remember the repository root before we cd into the SDK directory
-        REPO_ROOT="$PWD"
+      - name: Download and extract ImmortalWrt SDK
+        shell: bash
+        run: |
+          set -euo pipefail
 
-        # Download the OpenWrt SDK
-        wget https://downloads.immortalwrt.org/releases/24.10.3/targets/x86/64/immortalwrt-sdk-24.10.3-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          REPO_ROOT="$GITHUB_WORKSPACE"
+          WORK_DIR="$RUNNER_TEMP/immortalwrt-build"
 
-        # Extract the SDK
-        tar --zstd -xvf immortalwrt-sdk-24.10.3-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          mkdir -p "$WORK_DIR"
+          cd "$WORK_DIR"
 
-        # List the extracted files to check directory name(s)
-        ls -l
+          wget -q --show-progress \
+            "$SDK_URL/$SDK_ARCHIVE"
 
-        # Use find to identify the exact directory
-        SDK_DIR=$(find . -type d -name 'immortalwrt-sdk*' | head -n 1)
+          tar --zstd -xf "$SDK_ARCHIVE"
 
-        # Change directory to the identified SDK directory
-        cd "$SDK_DIR"
+          SDK_DIR="$(find "$WORK_DIR" \
+            -mindepth 1 -maxdepth 1 \
+            -type d \
+            -name 'immortalwrt-sdk-*' \
+            -print -quit)"
 
-        # First run to generate a default .config file
-        make defconfig
+          if [ -z "$SDK_DIR" ]; then
+            echo "ERROR: SDK extraction failed"
+            exit 1
+          fi
 
-        # Update and install feeds
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
+          echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
 
-        # Remove cloudflared package installed from feeds
-        rm -rf package/feeds/packages/cloudflared
-        rm -rf package/cloudflared
-        
-        # cloudflared isn't part of this SDK's frozen feeds, so use the package
-        # definition already vendored in this repository at ./cloudflared
-        cp -r "$REPO_ROOT/cloudflared" package/cloudflared
+          cd "$SDK_DIR"
 
-        # Fix Go package framework include path
-        sed -i \
+          echo "SDK directory: $SDK_DIR"
+
+          # Generate default configuration
+          make defconfig
+
+          # Update and install feeds
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Install Go 1.27.3 into SDK Host toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd "$SDK_DIR"
+
+          # Find the Go toolchain directory used by golang-package.mk
+          shopt -s nullglob
+
+          GO_ROOTS=(
+            "$SDK_DIR"/staging_dir/hostpkg/lib/go-*
+          )
+
+          if [ "${#GO_ROOTS[@]}" -ne 1 ]; then
+            echo "ERROR: Expected exactly one SDK Host Go directory"
+            printf '%s\n' "${GO_ROOTS[@]}"
+            exit 1
+          fi
+
+          GO_ROOT="${GO_ROOTS[0]}"
+
+          echo "Replacing SDK Go directory: $GO_ROOT"
+
+          # Download official Go release
+          GO_ARCHIVE="go${GO_VERSION}.linux-amd64.tar.gz"
+
+          curl -fsSL \
+            "https://go.dev/dl/$GO_ARCHIVE" \
+            -o "$RUNNER_TEMP/$GO_ARCHIVE"
+
+          # Obtain official SHA256 checksum
+          GO_SHA256="$(
+            curl -fsSL \
+              "https://go.dev/dl/?mode=json&include=all" |
+            jq -er \
+              --arg version "go${GO_VERSION}" \
+              --arg filename "$GO_ARCHIVE" \
+              '[.[] |
+                select(.version == $version) |
+                .files[] |
+                select(.filename == $filename) |
+                .sha256][0]'
+          )"
+
+          echo "$GO_SHA256  $RUNNER_TEMP/$GO_ARCHIVE" |
+            sha256sum -c -
+
+          # Replace SDK Host Go installation
+          rm -rf "$GO_ROOT"
+          mkdir -p "$GO_ROOT"
+
+          tar -xzf "$RUNNER_TEMP/$GO_ARCHIVE" \
+            -C "$GO_ROOT" \
+            --strip-components=1
+
+          # Verify Go version
+          "$GO_ROOT/bin/go" version
+
+          ACTUAL_VERSION="$(
+            "$GO_ROOT/bin/go" version |
+            awk '{print $3}' |
+            sed 's/^go//'
+          )"
+
+          if [ "$ACTUAL_VERSION" != "$GO_VERSION" ]; then
+            echo "ERROR: Incorrect Go version"
+            exit 1
+          fi
+
+          echo "Go toolchain successfully installed: $ACTUAL_VERSION"
+
+      - name: Install custom cloudflared package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd "$SDK_DIR"
+
+          # Remove cloudflared installed from feeds
+          rm -rf package/feeds/packages/cloudflared
+          rm -rf package/cloudflared
+
+          # Copy our own cloudflared package
+          cp -a "$GITHUB_WORKSPACE/cloudflared" \
+            package/cloudflared
+
+          # Fix Go package framework include path
+          sed -i \
             's|^include ../../lang/golang/golang-package.mk|include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk|' \
             package/cloudflared/Makefile
-        
-        # Verify
-        grep -n 'golang-package.mk' package/cloudflared/Makefile
-        
-        # Configure package to be built
-        echo "CONFIG_PACKAGE_cloudflared=y" >> .config
 
-        # Compile the package
-        make package/cloudflared/compile V=s BUILD_LOG=y -j$(nproc)
+          # Verify custom source
+          echo "========== Cloudflared Makefile =========="
+          grep -nE 'golang-package.mk|PKG_VERSION|GO_PKG' \
+            package/cloudflared/Makefile
 
-    - name: Organize files
-      id: organize
-      run: |
-        # Ensure 'upload' is a directory
-        if [ ! -d "upload" ]; then
-          mkdir -p upload
-        fi
+          echo "========== Go module requirement =========="
+          grep -E '^(go|toolchain) ' \
+            package/cloudflared/go.mod
 
-        # 尝试搬运(bin 存在则优先用，不存在则全局搜）
-        if [ -d "./bin" ]; then
-          find ./bin -type f -name "*cloudflared*" -exec mv -n "{}" upload/ \;
-        else
-          echo "⚠️ ./bin 不存在，改用全局搜索 .ipk..."
-          find . -type f -name "*cloudflared*.ipk" -exec mv -n "{}" upload/ \; 2>/dev/null || true
-        fi
+          echo "========== Go compiler =========="
+          find staging_dir/hostpkg/lib/go-* \
+            -maxdepth 2 -name go -type f \
+            -exec {} version \;
 
-        # 确认结果
-        echo "📦 upload 目录内容："
-        ls -lh upload/ || echo "⚠️ upload 为空，未找到 cloudflared 产物"
+          # Configure cloudflared
+          if grep -q '^CONFIG_PACKAGE_cloudflared=' .config; then
+            sed -i \
+              's/^CONFIG_PACKAGE_cloudflared=.*/CONFIG_PACKAGE_cloudflared=y/' \
+              .config
+          else
+            echo 'CONFIG_PACKAGE_cloudflared=y' >> .config
+          fi
 
-        # 时间戳
-        echo "FILE_DATE=$(date +"%Y%m%d%H%M")" >> "$GITHUB_ENV"
+          make defconfig
 
-    - name: Upload bin directory
-      uses: actions/upload-artifact@v7
-      with:
-        name: Cloudflared-IPK-${{ env.FILE_DATE }}
-        path: upload
+      - name: Compile cloudflared
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd "$SDK_DIR"
+
+          # Clean previous build
+          make package/cloudflared/clean
+
+          # Compile custom cloudflared
+          make package/cloudflared/compile \
+            V=s \
+            BUILD_LOG=y \
+            -j"$(nproc)"
+
+          echo "========== Build output =========="
+
+          find bin/packages -type f \
+            \( -name 'cloudflared*.ipk' \
+            -o -name 'cloudflared*.apk' \) \
+            -print
+
+          if ! find bin/packages -type f \
+            \( -name 'cloudflared*.ipk' \
+            -o -name 'cloudflared*.apk' \) |
+            grep -q .; then
+            echo "ERROR: cloudflared package not generated"
+            exit 1
+          fi
+
+      - name: Upload cloudflared package
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflared-immortalwrt-24.10.3-x86-64
+          path: |
+            ${{ env.SDK_DIR }}/bin/packages/**/cloudflared*.ipk
+            ${{ env.SDK_DIR }}/bin/packages/**/cloudflared*.apk
+          if-no-files-found: error
+          retention-days: 14
