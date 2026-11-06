@@ -60,6 +60,10 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
+        # Remove cloudflared package installed from feeds
+        rm -rf package/feeds/packages/cloudflared
+        rm -rf package/cloudflared
+        
         # cloudflared isn't part of this SDK's frozen feeds, so use the package
         # definition already vendored in this repository at ./cloudflared
         cp -r "$REPO_ROOT/cloudflared" package/cloudflared
