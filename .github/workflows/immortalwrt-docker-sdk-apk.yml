@@ -29,7 +29,7 @@ env:
   APPS: |
     fchomo|https://github.com/muink/openwrt-fchomo.git;master|mihomo luci-app-fchomo luci-i18n-fchomo-zh-cn|mihomo luci-app-fchomo
     lucky|https://github.com/gdy666/luci-app-lucky.git;main|lucky luci-app-lucky luci-i18n-lucky-zh-cn|lucky luci-app-lucky
-    agh|https://github.com/kenzok78/luci-app-adguardhome.git;main|luci-app-adguardhome|agh
+    agh|https://github.com/kenzok78/luci-app-adguardhome.git;main|luci-app-adguardhome|luci-app-adguardhome
 
 jobs:
   build:
