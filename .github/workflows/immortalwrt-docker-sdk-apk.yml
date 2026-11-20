@@ -1,0 +1,269 @@
+name: Immortalwrt SDK APK
+run-name: Immortalwrt SDK APK (${{ inputs.sdk_version }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      sdk_version:
+        description: ImmortalWrt SDK version (x86-64)
+        required: true
+        default: "25.12.2"
+        type: choice
+        options:
+          - "25.12.0"
+          - "25.12.1"
+          - "25.12.2"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: immortalwrt-docker-sdk-apk-release-v1.0
+  cancel-in-progress: false
+
+env:
+  TZ: Asia/Shanghai
+  RELEASE_TAG: v1.0
+  SDK_IMAGE: immortalwrt/sdk:x86-64-${{ inputs.sdk_version }}
+  # feed | repository;branch | output package names | SDK source directory names
+  APPS: |
+    fchomo|https://github.com/muink/openwrt-fchomo.git;master|mihomo luci-app-fchomo luci-i18n-fchomo-zh-cn|mihomo luci-app-fchomo
+    lucky|https://github.com/gdy666/luci-app-lucky.git;main|lucky luci-app-lucky luci-i18n-lucky-zh-cn|lucky luci-app-lucky
+    agh|https://github.com/kenzok78/luci-app-adguardhome.git;main|luci-app-adguardhome|agh
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Pull SDK image
+        run: docker pull "$SDK_IMAGE"
+
+      - name: Compile APKs in Docker
+        shell: bash
+        env:
+          CONTAINER_NAME: immortalwrt-sdk-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1' EXIT
+
+          docker run --name "$CONTAINER_NAME" --interactive \
+            --env APPS --env TZ \
+            --entrypoint /bin/bash "$SDK_IMAGE" -s <<'BUILD'
+          set -euo pipefail
+          umask 022
+
+          cp feeds.conf.default feeds.conf
+          while IFS='|' read -r feed repository packages targets; do
+            [[ -n "$feed" ]] || continue
+            printf 'src-git %s %s\n' "$feed" "$repository" >> feeds.conf
+          done <<< "$APPS"
+
+          ./scripts/feeds update -a
+
+          # This LuCI module lives under modules/, otherwise its dependency is omitted.
+          sed -i 's#feeds/luci/luci-compat/Makefile#feeds/luci/modules/luci-compat/Makefile#' feeds/agh/Makefile
+          ./scripts/feeds update -i agh
+
+          while IFS='|' read -r feed repository packages targets; do
+            [[ -n "$feed" ]] || continue
+            ./scripts/feeds install -f -a -p "$feed"
+          done <<< "$APPS"
+          ./scripts/feeds install -a
+
+          cat > .config <<'CONFIG'
+          # CONFIG_ALL is not set
+          # CONFIG_ALL_KMODS is not set
+          # CONFIG_ALL_NONSHARED is not set
+          CONFIG_USE_APK=y
+          CONFIG_LUCI_LANG_zh_Hans=y
+          CONFIG
+
+          while IFS='|' read -r feed repository packages targets; do
+            [[ -n "$feed" ]] || continue
+            read -r -a package_names <<< "$packages"
+            for package in "${package_names[@]}"; do
+              printf 'CONFIG_PACKAGE_%s=m\n' "$package" >> .config
+            done
+          done <<< "$APPS"
+          make defconfig
+          grep -qx 'CONFIG_USE_APK=y' .config
+
+          while IFS='|' read -r feed repository packages targets; do
+            [[ -n "$feed" ]] || continue
+            read -r -a package_names <<< "$packages"
+            for package in "${package_names[@]}"; do
+              if ! grep -qxE "CONFIG_PACKAGE_${package}=(m|y)" .config; then
+                echo "Package was not selected: $package" >&2
+                exit 1
+              fi
+            done
+          done <<< "$APPS"
+
+          # Mihomo's preparation script invokes UPX without declaring a host dependency.
+          make package/feeds/packages/upx/host/compile -j2 V=s BUILD_LOG=y
+
+          while IFS='|' read -r feed repository packages targets; do
+            [[ -n "$feed" ]] || continue
+            read -r -a source_targets <<< "$targets"
+            for target in "${source_targets[@]}"; do
+              make "package/feeds/$feed/$target/compile" -j2 V=s BUILD_LOG=y
+            done
+          done <<< "$APPS"
+
+          mkdir -p "$HOME/output"
+          while IFS='|' read -r feed repository packages targets; do
+            [[ -n "$feed" ]] || continue
+            read -r -a package_names <<< "$packages"
+            for package in "${package_names[@]}"; do
+              mapfile -d '' -t files < <(find bin/packages -type f -name "$package-[0-9]*.apk" -print0)
+              if [[ "${#files[@]}" -ne 1 ]]; then
+                echo "Expected one APK for $package, found ${#files[@]}" >&2
+                exit 1
+              fi
+              test -s "${files[0]}"
+              cp "${files[0]}" "$HOME/output/"
+            done
+          done <<< "$APPS"
+          BUILD
+
+          mkdir -p output
+          docker cp "$CONTAINER_NAME:/home/build/output/." output/
+
+      - name: Save APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: APK-x86-64-${{ inputs.sdk_version }}
+          path: output/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Download APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: APK-x86-64-${{ inputs.sdk_version }}
+          path: output
+
+      - name: Replace matching APK assets in Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { owner, repo } = context.repo;
+            const tag = process.env.RELEASE_TAG;
+            const directory = path.resolve('output');
+
+            function packageName(filename) {
+              const legacy = filename.match(/^(.+?)_[^_]+_[^_]+\.apk$/);
+              if (legacy) return legacy[1];
+              const current = filename.match(/^(.+)-[0-9][^-]*(?:-r[0-9]+)?\.apk$/);
+              return current ? current[1] : null;
+            }
+
+            const files = fs.readdirSync(directory).filter(name => name.endsWith('.apk')).sort();
+            if (files.length === 0) throw new Error('No APKs to publish');
+
+            const packages = new Set();
+            for (const filename of files) {
+              const name = packageName(filename);
+              if (!name) throw new Error(`Unrecognized APK filename: ${filename}`);
+              if (packages.has(name)) throw new Error(`Multiple APKs for package: ${name}`);
+              if (fs.statSync(path.join(directory, filename)).size === 0) {
+                throw new Error(`Empty APK: ${filename}`);
+              }
+              packages.add(name);
+            }
+
+            let release;
+            try {
+              release = (await github.rest.repos.getReleaseByTag({ owner, repo, tag })).data;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              release = (await github.rest.repos.createRelease({
+                owner, repo,
+                tag_name: tag,
+                target_commitish: context.sha,
+                name: tag,
+                body: 'ImmortalWrt x86-64 APK packages built with the Docker SDK.',
+                draft: false,
+                prerelease: false
+              })).data;
+            }
+
+            const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
+              owner, repo, release_id: release.id, per_page: 100
+            });
+
+            async function upload(filename, data) {
+              await github.rest.repos.uploadReleaseAsset({
+                owner, repo,
+                release_id: release.id,
+                name: filename,
+                data,
+                headers: {
+                  'content-type': 'application/octet-stream',
+                  'content-length': data.length
+                }
+              });
+            }
+
+            for (const filename of files) {
+              const data = fs.readFileSync(path.join(directory, filename));
+              const existing = assets.find(asset => asset.name === filename);
+              let backup;
+              if (existing) {
+                const response = await github.rest.repos.getReleaseAsset({
+                  owner, repo,
+                  asset_id: existing.id,
+                  headers: { accept: 'application/octet-stream' }
+                });
+                backup = Buffer.from(response.data);
+                if (backup.length !== existing.size) {
+                  throw new Error(`Invalid backup size: ${filename}`);
+                }
+                core.info(`Replacing identical APK filename: ${filename}`);
+                await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: existing.id });
+              }
+
+              core.info(`Uploading APK: ${filename}`);
+              try {
+                await upload(filename, data);
+              } catch (error) {
+                try {
+                  const remaining = await github.paginate(github.rest.repos.listReleaseAssets, {
+                    owner, repo, release_id: release.id, per_page: 100
+                  });
+                  for (const asset of remaining) {
+                    if (asset.name !== filename || asset.state !== 'starter') continue;
+                    await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: asset.id });
+                  }
+                  if (backup) {
+                    await upload(filename, backup);
+                    core.warning(`Restored previous APK: ${filename}`);
+                  }
+                } catch (restoreError) {
+                  core.error(`Could not clean up or restore ${filename}: ${restoreError.message}`);
+                }
+                throw error;
+              }
+            }
+
+            for (const asset of assets) {
+              if (!packages.has(packageName(asset.name)) || files.includes(asset.name)) continue;
+              core.info(`Deleting old APK: ${asset.name}`);
+              await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: asset.id });
+            }
+
+            await core.summary
+              .addHeading(`Published to ${tag}`)
+              .addRaw(`SDK image: ${process.env.SDK_IMAGE}\n\n`)
+              .addList(files)
+              .write();
