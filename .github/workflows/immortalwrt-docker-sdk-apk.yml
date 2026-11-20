@@ -25,11 +25,11 @@ env:
   TZ: Asia/Shanghai
   RELEASE_TAG: v1.0
   SDK_IMAGE: immortalwrt/sdk:x86-64-openwrt-${{ inputs.sdk_version }}
-  # feed | repository;branch | output package names | SDK source directory names
+  # clone dir | repository;branch-or-commit | output package names | build directory
   APPS: |
     fchomo|https://github.com/muink/openwrt-fchomo.git;master|mihomo luci-app-fchomo luci-i18n-fchomo-zh-cn|mihomo luci-app-fchomo
     lucky|https://github.com/gdy666/luci-app-lucky.git;main|lucky luci-app-lucky luci-i18n-lucky-zh-cn|lucky luci-app-lucky
-    agh|https://github.com/kenzok78/luci-app-adguardhome.git;main|luci-app-adguardhome|luci-app-adguardhome
+    luci-app-adguardhome|https://github.com/kenzok78/luci-app-adguardhome.git;main|luci-app-adguardhome|luci-app-adguardhome
 
 jobs:
   build:
@@ -47,6 +47,7 @@ jobs:
           set -euo pipefail
           trap 'docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1' EXIT
 
+          set +e
           docker run --name "$CONTAINER_NAME" --interactive \
             --env APPS --env TZ \
             --entrypoint /bin/bash "$SDK_IMAGE" -s <<'BUILD'
@@ -54,22 +55,68 @@ jobs:
           umask 022
 
           cp feeds.conf.default feeds.conf
-          while IFS='|' read -r feed repository packages targets; do
-            [[ -n "$feed" ]] || continue
-            printf 'src-git %s %s\n' "$feed" "$repository" >> feeds.conf
-          done <<< "$APPS"
-
+          # The stock feeds still provide luci.mk and the runtime dependencies.
           ./scripts/feeds update -a
-
-          # This LuCI module lives under modules/, otherwise its dependency is omitted.
-          sed -i 's#feeds/luci/luci-compat/Makefile#feeds/luci/modules/luci-compat/Makefile#' feeds/agh/Makefile
-          ./scripts/feeds update -i agh
-
-          while IFS='|' read -r feed repository packages targets; do
-            [[ -n "$feed" ]] || continue
-            ./scripts/feeds install -f -a -p "$feed"
-          done <<< "$APPS"
           ./scripts/feeds install -a
+
+          # Cloning into package/<dir> is all a package needs: the build system scans
+          # package/ itself, so there is no feed entry and no symlink involved.
+          while IFS='|' read -r clone repository packages targets; do
+            [[ -n "$clone" ]] || continue
+            url="${repository%%;*}"
+            ref="${repository#*;}"
+            [[ "$ref" != "$repository" ]] || ref=master
+            destination="package/$clone"
+            rm -rf "$destination"
+            if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then
+              git init -q "$destination"
+              git -C "$destination" remote add origin "$url"
+              git -C "$destination" fetch -q --depth 1 origin "$ref"
+              git -C "$destination" checkout -q FETCH_HEAD
+            else
+              git clone --depth 1 --branch "$ref" "$url" "$destination"
+            fi
+            echo "Cloned $url ($ref) into $destination"
+          done <<< "$APPS"
+
+          # A stock feed may ship a package of the same name (immortalwrt/luci carries
+          # luci-app-adguardhome). feeds install only creates symlinks, so remove those
+          # and let the clone be the only definition of the Kconfig symbol.
+          while IFS='|' read -r clone repository packages targets; do
+            [[ -n "$clone" ]] || continue
+            read -r -a source_targets <<< "$targets"
+            for target in "${source_targets[@]}"; do
+              for duplicate in package/feeds/*/"$target" package/feeds/*/*/"$target"; do
+                [[ -L "$duplicate" ]] || continue
+                echo "Removing feed duplicate of $target: $duplicate" >&2
+                rm -rf "$duplicate"
+              done
+            done
+          done <<< "$APPS"
+
+          # `make package/<name>/compile` resolves through subdir.mk's basename alias,
+          # so the directory must exist and be unique below package/.
+          while IFS='|' read -r clone repository packages targets; do
+            [[ -n "$clone" ]] || continue
+            read -r -a source_targets <<< "$targets"
+            for target in "${source_targets[@]}"; do
+              matches=()
+              while IFS= read -r path; do
+                if [[ -f "$path/Makefile" ]]; then
+                  matches+=("$path")
+                fi
+              done < <(find -L package -maxdepth 4 -type d -name "$target" -print 2>/dev/null)
+              if [[ "${#matches[@]}" -ne 1 ]]; then
+                echo "Expected one build directory named '$target', found ${#matches[@]}" >&2
+                if [[ "${#matches[@]}" -gt 0 ]]; then
+                  printf '  %s\n' "${matches[@]}" >&2
+                else
+                  echo "  nothing below package/$clone" >&2
+                fi
+                exit 1
+              fi
+            done
+          done <<< "$APPS"
 
           cat > .config <<'CONFIG'
           # CONFIG_ALL is not set
@@ -79,8 +126,8 @@ jobs:
           CONFIG_LUCI_LANG_zh_Hans=y
           CONFIG
 
-          while IFS='|' read -r feed repository packages targets; do
-            [[ -n "$feed" ]] || continue
+          while IFS='|' read -r clone repository packages targets; do
+            [[ -n "$clone" ]] || continue
             read -r -a package_names <<< "$packages"
             for package in "${package_names[@]}"; do
               printf 'CONFIG_PACKAGE_%s=m\n' "$package" >> .config
@@ -89,8 +136,8 @@ jobs:
           make defconfig
           grep -qx 'CONFIG_USE_APK=y' .config
 
-          while IFS='|' read -r feed repository packages targets; do
-            [[ -n "$feed" ]] || continue
+          while IFS='|' read -r clone repository packages targets; do
+            [[ -n "$clone" ]] || continue
             read -r -a package_names <<< "$packages"
             for package in "${package_names[@]}"; do
               if ! grep -qxE "CONFIG_PACKAGE_${package}=(m|y)" .config; then
@@ -103,17 +150,17 @@ jobs:
           # Mihomo's preparation script invokes UPX without declaring a host dependency.
           make package/feeds/packages/upx/host/compile -j2 V=s BUILD_LOG=y
 
-          while IFS='|' read -r feed repository packages targets; do
-            [[ -n "$feed" ]] || continue
+          while IFS='|' read -r clone repository packages targets; do
+            [[ -n "$clone" ]] || continue
             read -r -a source_targets <<< "$targets"
             for target in "${source_targets[@]}"; do
-              make "package/feeds/$feed/$target/compile" -j2 V=s BUILD_LOG=y
+              make "package/$target/compile" -j2 V=s BUILD_LOG=y
             done
           done <<< "$APPS"
 
           mkdir -p "$HOME/output"
-          while IFS='|' read -r feed repository packages targets; do
-            [[ -n "$feed" ]] || continue
+          while IFS='|' read -r clone repository packages targets; do
+            [[ -n "$clone" ]] || continue
             read -r -a package_names <<< "$packages"
             for package in "${package_names[@]}"; do
               mapfile -d '' -t files < <(find bin/packages -type f -name "$package-[0-9]*.apk" -print0)
@@ -126,6 +173,17 @@ jobs:
             done
           done <<< "$APPS"
           BUILD
+          status=$?
+          set -e
+
+          if [[ "$status" -ne 0 ]]; then
+            # BUILD_LOG=y writes per-directory logs inside the container; keep them
+            # before the EXIT trap removes it.
+            mkdir -p logs
+            docker cp "$CONTAINER_NAME:/home/build/immortalwrt/logs/." logs/ >/dev/null 2>&1 || true
+            echo "Compile step failed with status $status" >&2
+            exit "$status"
+          fi
 
           mkdir -p output
           docker cp "$CONTAINER_NAME:/home/build/output/." output/
@@ -136,6 +194,15 @@ jobs:
           name: APK-x86-64-${{ inputs.sdk_version }}
           path: output/*.apk
           if-no-files-found: error
+          retention-days: 7
+
+      - name: Save build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-x86-64-${{ inputs.sdk_version }}-${{ github.run_attempt }}
+          path: logs/
+          if-no-files-found: ignore
           retention-days: 7
 
   publish:
