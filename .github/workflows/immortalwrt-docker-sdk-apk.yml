@@ -24,7 +24,7 @@ concurrency:
 env:
   TZ: Asia/Shanghai
   RELEASE_TAG: v1.0
-  SDK_IMAGE: imimmortalwrt/sdk:x86-64-openwrt-${{ inputs.sdk_version }}
+  SDK_IMAGE: immortalwrt/sdk:x86-64-openwrt-${{ inputs.sdk_version }}
   # feed | repository;branch | output package names | SDK source directory names
   APPS: |
     fchomo|https://github.com/muink/openwrt-fchomo.git;master|mihomo luci-app-fchomo luci-i18n-fchomo-zh-cn|mihomo luci-app-fchomo
