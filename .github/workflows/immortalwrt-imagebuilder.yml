@@ -1,0 +1,321 @@
+name: ImmortalWrt Image Builder (x86-64)
+
+run-name: ImmortalWrt IB x86-64 · ${{ inputs.luci_version }} · ${{ inputs.custom_router_ip }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      luci_version:
+        description: "选择luci版本"
+        required: false
+        default: "25.12.2"
+        type: choice
+        options:
+          - "25.12.0"
+          - "25.12.1"
+          - "25.12.2"
+
+      custom_router_ip:
+        description: "请设置路由器的管理地址(仅对多网口路由器有效) 格式:192.168.x.1 或 10.x.x.1"
+        required: true
+        default: "192.168.3.1"
+
+      rootfs_size:
+        description: "软件包空间大小"
+        required: false
+        default: "4G"
+        type: choice
+        options:
+          - "1G"
+          - "2G"
+          - "3G"
+          - "4G"
+
+      extra_packages:
+        description: "在内置应用之外追加的软件包（空格分隔；用 -包名 移除）"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: immortalwrt-ib-x86-64-${{ inputs.luci_version }}
+  cancel-in-progress: false
+
+env:
+  TZ: Asia/Shanghai
+  RELEASE_TAG: v1.0
+  PROFILE: generic
+  IMAGE: immortalwrt/imagebuilder:x86-64-openwrt-${{ inputs.luci_version }}
+
+  # Apps selected by the old full-source build (openwrt-builder.yml).
+  # luci-app-{lucky,fchomo,mihomo,adguardhome} come from the v1.0 APKs instead.
+  BUILDER_APPS: >-
+    luci-app-autoreboot luci-app-banip luci-app-homeproxy luci-app-netdata
+    luci-app-nlbwmon luci-app-passwall luci-app-samba4 luci-app-upnp
+    luci-app-wechatpush luci-app-zerotier luci-app-vlmcsd luci-app-diskman
+    nano owipcalc gawk grep sed coreutils-sort
+
+  # Image Builder does not add LuCI translations automatically.
+  # Unavailable ones are skipped at build time rather than failing the build.
+  ZH_I18N: >-
+    luci-i18n-autoreboot-zh-cn luci-i18n-banip-zh-cn luci-i18n-homeproxy-zh-cn
+    luci-i18n-netdata-zh-cn luci-i18n-nlbwmon-zh-cn luci-i18n-passwall-zh-cn
+    luci-i18n-samba4-zh-cn luci-i18n-upnp-zh-cn luci-i18n-wechatpush-zh-cn
+    luci-i18n-zerotier-zh-cn luci-i18n-vlmcsd-zh-cn luci-i18n-diskman-zh-cn
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        env:
+          ROUTER_IP: ${{ inputs.custom_router_ip }}
+          ROOTFS_SIZE: ${{ inputs.rootfs_size }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$ROUTER_IP" =~ ^(192\.168\.[0-9]{1,3}\.1|10\.[0-9]{1,3}\.[0-9]{1,3}\.1)$ ]]; then
+            echo "::error::Invalid router IP '$ROUTER_IP'; expected 192.168.x.1 or 10.x.x.1" >&2
+            exit 1
+          fi
+          case "$ROOTFS_SIZE" in
+            1G) MB=1024 ;;
+            2G) MB=2048 ;;
+            3G) MB=3072 ;;
+            4G) MB=4096 ;;
+            *) echo "::error::Unsupported rootfs size '$ROOTFS_SIZE'" >&2; exit 1 ;;
+          esac
+          echo "ROOTFS_PARTSIZE=$MB" >> "$GITHUB_ENV"
+          echo "ROUTER_IP=$ROUTER_IP" >> "$GITHUB_ENV"
+          echo "rootfs = ${MB} MiB, router = $ROUTER_IP"
+
+      - name: Download custom APKs from release ${{ env.RELEASE_TAG }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p custom-packages
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern '*.apk' --dir custom-packages --clobber
+
+          shopt -s nullglob
+          apks=(custom-packages/*.apk)
+          if (( ${#apks[@]} == 0 )); then
+            echo "::error::No .apk assets found in release $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+          # Image Builder pins a package with name=version so a stock package of
+          # the same name (e.g. luci-app-adguardhome) cannot win the resolution.
+          : > custom_packages.txt
+          for apk in "${apks[@]}"; do
+            base="$(basename "$apk" .apk)"
+            name="${base%%-[0-9]*}"
+            if [[ "$name" == "$base" ]]; then
+              echo "::error::Cannot parse package name from '$base'" >&2
+              exit 1
+            fi
+            version="${base#"$name"-}"
+            printf '%s=%s\n' "$name" "$version" >> custom_packages.txt
+            printf '  %-40s <- %s\n' "$name=$version" "$(basename "$apk")"
+          done
+          sort -u -o custom_packages.txt custom_packages.txt
+          if cut -d= -f1 custom_packages.txt | sort | uniq -d | grep -q .; then
+            echo "::error::Duplicate package names in release $RELEASE_TAG" >&2
+            cut -d= -f1 custom_packages.txt | sort | uniq -d >&2
+            exit 1
+          fi
+
+      - name: Generate uci-defaults
+        env:
+          ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
+          ROUTER_IP: ${{ inputs.custom_router_ip }}
+        run: |
+          set -euo pipefail
+          mkdir -p files/etc/uci-defaults
+          cat > files/etc/uci-defaults/99-custom <<'SCRIPT'
+          #!/bin/sh
+          exec >/tmp/setup.log 2>&1
+
+          # Baked in at build time. Leave the secret empty to keep the default password.
+          root_password='__ROOT_PASSWORD__'
+          if [ -n "$root_password" ]; then
+            (echo "$root_password"; sleep 1; echo "$root_password") | passwd >/dev/null 2>&1
+          fi
+
+          echo "Applying firewall settings"
+          uci set firewall.@zone[1].input='ACCEPT'
+
+          # Named sections + cleanup make this safe to re-run after sysupgrade -k:
+          # an old rule with the same name is deleted before the new one is added.
+          ensure_rule() {
+            local section="$1" name="$2" src="$3" dest="$4" proto="$5" ports="$6" family="$7" target="$8"
+            local s
+            for s in $(uci -q show firewall | grep -F ".name='$name'" | cut -d. -f2); do
+              [ "$s" = "$section" ] || uci -q delete "firewall.$s"
+            done
+            uci -q delete "firewall.$section"
+            uci set "firewall.$section=rule"
+            uci set "firewall.$section.name=$name"
+            uci set "firewall.$section.src=$src"
+            if [ "$dest" != "-" ]; then
+              uci set "firewall.$section.dest=$dest"
+            fi
+            uci set "firewall.$section.proto=$proto"
+            uci set "firewall.$section.dest_port=$ports"
+            uci set "firewall.$section.family=$family"
+            uci set "firewall.$section.target=$target"
+          }
+
+          ensure_rule allow_cf_http_v6 'Allow-Cloudflare-HTTP-IPv6-Forward' '*' lan tcp '80 8080 8880 2052 2802 2086 2095' ipv6 ACCEPT
+          ensure_rule allow_cf_https_v6 'Allow-Cloudflare-HTTPS-IPv6-Forward' '*' lan tcp '443 2053 2083 2087 2096 8443' ipv6 ACCEPT
+          ensure_rule allow_nas_webdav_v6 'Allow-NAS-WebDAV-Forward' '*' lan 'tcp udp' '5005 5006' ipv6 ACCEPT
+          ensure_rule allow_cf_https_in_v6 'Allow-Cloudflare-HTTPS-IPv6-Input' wan - 'tcp udp' '443 2053 2083 2087 2096 8443' ipv6 ACCEPT
+          uci commit firewall
+
+          echo "Applying network settings"
+          uci set network.lan.ipaddr='__ROUTER_IP__'
+          # Prefer an explicit br-lan device; fall back to the first device entry.
+          lan_device=''
+          for s in $(uci -q show network | sed -n "s/^network\.\([^.]*\)\.name='br-lan'$/\1/p"); do
+            lan_device="$s"
+          done
+          if [ -n "$lan_device" ]; then
+            uci set "network.$lan_device.ports=eth0 eth2 eth3"
+          else
+            uci set network.@device[0].ports='eth0 eth2 eth3'
+          fi
+          uci commit network
+          echo "Configuration applied successfully"
+          SCRIPT
+          chmod 755 files/etc/uci-defaults/99-custom
+
+          # Replace placeholders without shell interpolation (passwords may contain any character).
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path('files/etc/uci-defaults/99-custom')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('__ROOT_PASSWORD__', os.environ.get('ROOT_PASSWORD', ''))
+          text = text.replace('__ROUTER_IP__', os.environ['ROUTER_IP'])
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Pull Image Builder image
+        run: docker pull "$IMAGE"
+
+      - name: Build firmware
+        env:
+          EXTRA_PACKAGES: ${{ inputs.extra_packages }}
+        run: |
+          set -euo pipefail
+          custom="$(paste -sd' ' custom_packages.txt)"
+          echo "PACKAGES(custom)=$custom"
+          echo "PACKAGES(builder apps)=$BUILDER_APPS"
+
+          mkdir -p bin
+          # The image runs as the unprivileged 'build' user (uid 1000).
+          sudo chown -R 1000:1000 bin
+
+          docker run --rm -i \
+            --entrypoint /bin/bash \
+            -v "$PWD/files:/files:ro" \
+            -v "$PWD/custom-packages:/custom-packages:ro" \
+            -v "$PWD/bin:/output" \
+            "$IMAGE" -s "$custom" "$BUILDER_APPS" "$ZH_I18N" "$EXTRA_PACKAGES" \
+              "$ROOTFS_PARTSIZE" "$PROFILE" <<'BUILD'
+          set -euo pipefail
+          CUSTOM="$1"
+          BUILDER_APPS="$2"
+          ZH_I18N="$3"
+          EXTRA="$4"
+          ROOTFS_PARTSIZE="$5"
+          PROFILE="$6"
+          cd /home/build/immortalwrt
+
+          # Keep whatever the image ships in packages/; just add our APKs.
+          cp /custom-packages/*.apk packages/
+
+          # Only request translations that exist in this release's repos.
+          make -s package_reload >/dev/null
+          make -s package_list >/tmp/pkg-list.txt 2>/dev/null || true
+          awk '{print $1}' /tmp/pkg-list.txt | sed -E 's/-[0-9][^-]*(-r[0-9]+)?$//' \
+            | sort -u >/tmp/available.txt
+          zh=''
+          for p in $ZH_I18N; do
+            if grep -qx "$p" /tmp/available.txt; then
+              zh="$zh $p"
+            else
+              echo "NOTE: $p is not in this release, skipping" >&2
+            fi
+          done
+
+          # Custom APKs come first; drop duplicate names (keep the pinned version).
+          PACKAGES="$(printf '%s %s %s %s' "$CUSTOM" "$BUILDER_APPS" "$zh" "$EXTRA" | xargs)"
+          PACKAGES="$(printf '%s\n' $PACKAGES | awk '{ n=$0; sub(/=.*/,"",n); if (!seen[n]++) print }' \
+            | paste -sd' ' -)"
+          if [ -z "$PACKAGES" ]; then
+            echo "::error::No packages selected" >&2
+            exit 1
+          fi
+          echo "PACKAGES=$PACKAGES"
+
+          make info | sed -n '1,30p'
+          echo "=== Checking package resolution ==="
+          make manifest PROFILE="$PROFILE" PACKAGES="$PACKAGES"
+          echo "=== Building image ==="
+          make image PROFILE="$PROFILE" PACKAGES="$PACKAGES" FILES="/files" \
+            BIN_DIR="/output" ROOTFS_PARTSIZE="$ROOTFS_PARTSIZE"
+          BUILD
+
+      - name: List generated images
+        run: find bin/targets/x86/64 -maxdepth 1 -type f -printf '%f  %k KB\n' | sort
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImmortalWrt-x86-64-${{ inputs.luci_version }}-${{ inputs.rootfs_size }}
+          path: |
+            bin/targets/x86/64/*.img.gz
+            bin/targets/x86/64/*.iso
+            bin/targets/x86/64/sha256sums
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Write run summary
+        env:
+          ROUTER_IP: ${{ inputs.custom_router_ip }}
+          ROOTFS_SIZE: ${{ inputs.rootfs_size }}
+          EXTRA_PACKAGES: ${{ inputs.extra_packages }}
+        run: |
+          {
+            echo "## ImmortalWrt Image Builder"
+            echo
+            echo "- Image: \`$IMAGE\`"
+            echo "- Profile: \`$PROFILE\`"
+            echo "- Router IP: \`$ROUTER_IP\`"
+            echo "- Rootfs size: \`$ROOTFS_SIZE\` (${ROOTFS_PARTSIZE} MiB)"
+            echo
+            echo "### Custom packages from \`$RELEASE_TAG\`"
+            echo '```'
+            cat custom_packages.txt
+            echo '```'
+            echo
+            echo "### Built-in apps (from openwrt-builder.yml)"
+            echo '```'
+            echo "$BUILDER_APPS" | tr ' ' '\n'
+            echo '```'
+            if [ -n "$EXTRA_PACKAGES" ]; then
+              echo
+              echo "### Extra packages"
+              echo "\`$EXTRA_PACKAGES\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
