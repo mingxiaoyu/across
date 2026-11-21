@@ -245,6 +245,9 @@ jobs:
           cp /custom-packages/*.apk packages/
 
           # Only request translations that exist in this release's repos.
+          # package_reload assumes these dirs exist; make image/manifest normally
+          # create them, but we call it early for the i18n filter.
+          mkdir -p dl tmp
           make -s package_reload >/dev/null
           make -s package_list >/tmp/pkg-list.txt 2>/dev/null || true
           awk '{print $1}' /tmp/pkg-list.txt | sed -E 's/-[0-9][^-]*(-r[0-9]+)?$//' \
