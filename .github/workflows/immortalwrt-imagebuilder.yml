@@ -292,17 +292,19 @@ jobs:
             cp "/custom-packages/$src" "packages/$dst"
           done < /custom-packages/custom_files.tsv
 
-          # Only request translations that exist in this release's repos.
-          # package_reload assumes these dirs exist; make image/manifest normally
-          # create them, but we call it early for the i18n filter.
+          # Load the package index so translations can be checked. Match the
+          # package name as a prefix on the raw listing ("name-version ..."):
+          # apk uses git-hash versions such as 26.298.29275~c84adb9, so parsing
+          # the version off with a regex is fragile. If the listing is empty or
+          # fails, fail OPEN and keep every translation rather than silently
+          # dropping the whole ZH_I18N set -- make manifest will surface a
+          # genuinely missing package as an explicit error.
           mkdir -p dl tmp
           make -s package_reload >/dev/null
           make -s package_list >/tmp/pkg-list.txt 2>/dev/null || true
-          awk '{print $1}' /tmp/pkg-list.txt | sed -E 's/-[0-9][^-]*(-r[0-9]+)?$//' \
-            | sort -u >/tmp/available.txt
           zh=''
           for p in $ZH_I18N; do
-            if grep -qx "$p" /tmp/available.txt; then
+            if [ ! -s /tmp/pkg-list.txt ] || grep -qF "${p}-" /tmp/pkg-list.txt; then
               zh="$zh $p"
             else
               echo "NOTE: $p is not in this release, skipping" >&2
