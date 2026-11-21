@@ -163,6 +163,13 @@ jobs:
               ''.join(f'{name}~{version}\n' for name, version, _ in rows),
               encoding='utf-8',
           )
+          # apk locates an indexed package by "<name>-<version>.apk". Release
+          # file names use '.' where the metadata version uses '~', so keep a
+          # source -> install-name map and rename while copying into packages/.
+          Path('custom-packages/custom_files.tsv').write_text(
+              ''.join(f'{filename}\t{name}-{version}.apk\n' for name, version, filename in rows),
+              encoding='utf-8',
+          )
           for name, version, filename in rows:
               print(f'  {name + "~" + version:<50} <- {filename}')
           PY
@@ -276,7 +283,11 @@ jobs:
           cd /home/build/immortalwrt
 
           # Keep whatever the image ships in packages/; just add our APKs.
-          cp /custom-packages/*.apk packages/
+          # Use the metadata version in the installed file name so apk can
+          # find the package after package_index rebuilds packages.adb.
+          while IFS=$'\t' read -r src dst; do
+            cp "/custom-packages/$src" "packages/$dst"
+          done < /custom-packages/custom_files.tsv
 
           # Only request translations that exist in this release's repos.
           # package_reload assumes these dirs exist; make image/manifest normally
