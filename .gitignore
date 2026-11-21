@@ -1,0 +1,26 @@
+# AI coding tools (local config / caches)
+.mimocode/
+.opencode/
+.cursor/
+.claude/
+.codebuddy/
+.windsurf/
+.aider*
+.cline/
+.roo/
+.continue/
+.claude/
+.mimocode/
+.workbuddy/
+
+# Local build artifacts from the Image Builder / SDK workflows
+bin/
+output/
+logs/
+custom-packages/
+custom_packages.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
