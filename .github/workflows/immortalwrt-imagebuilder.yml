@@ -325,16 +325,18 @@ jobs:
           BUILD
 
       - name: List generated images
-        run: find bin/targets/x86/64 -maxdepth 1 -type f -printf '%f  %k KB\n' | sort
+        run: find bin -type f -printf '%P  %k KB\n' | sort
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: ImmortalWrt-x86-64-${{ inputs.luci_version }}-${{ inputs.rootfs_size }}
+          # BIN_DIR is passed straight to the image Makefile: images may be
+          # written directly into bin/ or into bin/targets/<board>/<subtarget>/.
           path: |
-            bin/targets/x86/64/*.img.gz
-            bin/targets/x86/64/*.iso
-            bin/targets/x86/64/sha256sums
+            bin/**/*.img.gz
+            bin/**/*.iso
+            bin/**/sha256sums
           if-no-files-found: error
           retention-days: 14
 
