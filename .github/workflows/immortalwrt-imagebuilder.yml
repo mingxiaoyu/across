@@ -112,8 +112,10 @@ jobs:
             exit 1
           fi
 
-          # Image Builder pins a package with name=version so a stock package of
-          # the same name (e.g. luci-app-adguardhome) cannot win the resolution.
+          # Pin packages as name~version so a stock package of the same name
+          # (e.g. luci-app-adguardhome) cannot win the resolution. The '~'
+          # comparator (rather than '=') avoids an Image Builder Makefile bug
+          # where '=' pins leak their version to every later package.
           # Read the version from the APK metadata, not the file name: OpenWrt
           # replaces '~' with '.' in file names, and apk 3.x rejects versions
           # like "26.319.15630.112c6e2" as invalid world dependencies.
@@ -158,11 +160,11 @@ jobs:
               )
 
           Path('custom_packages.txt').write_text(
-              ''.join(f'{name}={version}\n' for name, version, _ in rows),
+              ''.join(f'{name}~{version}\n' for name, version, _ in rows),
               encoding='utf-8',
           )
           for name, version, filename in rows:
-              print(f'  {name + "=" + version:<50} <- {filename}')
+              print(f'  {name + "~" + version:<50} <- {filename}')
           PY
 
       - name: Generate uci-defaults
@@ -295,7 +297,7 @@ jobs:
 
           # Custom APKs come first; drop duplicate names (keep the pinned version).
           PACKAGES="$(printf '%s %s %s %s' "$CUSTOM" "$BUILDER_APPS" "$zh" "$EXTRA" | xargs)"
-          PACKAGES="$(printf '%s\n' $PACKAGES | awk '{ n=$0; sub(/=.*/,"",n); if (!seen[n]++) print }' \
+          PACKAGES="$(printf '%s\n' $PACKAGES | awk '{ n=$0; sub(/[=~].*/,"",n); if (!seen[n]++) print }' \
             | paste -sd' ' -)"
           if [ -z "$PACKAGES" ]; then
             echo "::error::No packages selected" >&2
