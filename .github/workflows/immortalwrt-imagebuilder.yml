@@ -114,24 +114,56 @@ jobs:
 
           # Image Builder pins a package with name=version so a stock package of
           # the same name (e.g. luci-app-adguardhome) cannot win the resolution.
-          : > custom_packages.txt
-          for apk in "${apks[@]}"; do
-            base="$(basename "$apk" .apk)"
-            name="${base%%-[0-9]*}"
-            if [[ "$name" == "$base" ]]; then
-              echo "::error::Cannot parse package name from '$base'" >&2
-              exit 1
-            fi
-            version="${base#"$name"-}"
-            printf '%s=%s\n' "$name" "$version" >> custom_packages.txt
-            printf '  %-40s <- %s\n' "$name=$version" "$(basename "$apk")"
-          done
-          sort -u -o custom_packages.txt custom_packages.txt
-          if cut -d= -f1 custom_packages.txt | sort | uniq -d | grep -q .; then
-            echo "::error::Duplicate package names in release $RELEASE_TAG" >&2
-            cut -d= -f1 custom_packages.txt | sort | uniq -d >&2
-            exit 1
-          fi
+          # Read the version from the APK metadata, not the file name: OpenWrt
+          # replaces '~' with '.' in file names, and apk 3.x rejects versions
+          # like "26.319.15630.112c6e2" as invalid world dependencies.
+          python3 - <<'PY'
+          import os
+          import re
+          import zlib
+          from pathlib import Path
+
+          def apk_version(path, name):
+              data = path.read_bytes()
+              if not data.startswith(b'ADBd'):
+                  raise ValueError(f'{path.name}: unsupported APK format')
+              raw = zlib.decompress(data[4:], -15)
+              if not raw.startswith(b'ADB.pckg'):
+                  raise ValueError(f'{path.name}: unexpected APK metadata')
+              # In ADB.pckg the name is the first string and the version the
+              # second; both are length-prefixed byte strings.
+              i = raw.find(name.encode())
+              if i < 0:
+                  raise ValueError(f'{path.name}: name missing from metadata')
+              i += len(name)
+              n = raw[i]
+              version = raw[i + 1:i + 1 + n].decode('utf-8')
+              if not version or not version[0].isdigit():
+                  raise ValueError(f'{path.name}: invalid version {version!r}')
+              return version
+
+          rows = []
+          for apk in sorted(Path('custom-packages').glob('*.apk')):
+              match = re.match(r'^(.+?)-[0-9]', apk.stem)
+              if not match:
+                  raise SystemExit(f'::error::Cannot parse package name from {apk.name}')
+              name = match.group(1)
+              rows.append((name, apk_version(apk, name), apk.name))
+
+          names = [name for name, _, _ in rows]
+          dup = sorted({name for name in names if names.count(name) > 1})
+          if dup:
+              raise SystemExit(
+                  f'::error::Duplicate package names in release {os.environ["RELEASE_TAG"]}: {dup}'
+              )
+
+          Path('custom_packages.txt').write_text(
+              ''.join(f'{name}={version}\n' for name, version, _ in rows),
+              encoding='utf-8',
+          )
+          for name, version, filename in rows:
+              print(f'  {name + "=" + version:<50} <- {filename}')
+          PY
 
       - name: Generate uci-defaults
         env:
