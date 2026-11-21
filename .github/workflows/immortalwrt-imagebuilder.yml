@@ -53,15 +53,16 @@ env:
   # Apps selected by the old full-source build (openwrt-builder.yml).
   # luci-app-{lucky,fchomo,mihomo,adguardhome} come from the v1.0 APKs instead.
   BUILDER_APPS: >-
-    luci-app-autoreboot luci-app-banip luci-app-homeproxy luci-app-netdata
-    luci-app-nlbwmon luci-app-passwall luci-app-samba4 luci-app-upnp
-    luci-app-wechatpush luci-app-zerotier luci-app-vlmcsd luci-app-diskman
-    nano owipcalc gawk grep sed coreutils-sort
+    luci-app-autoreboot luci-app-banip luci-app-cloudflared luci-app-homeproxy
+    luci-app-netdata luci-app-nlbwmon luci-app-passwall luci-app-samba4
+    luci-app-upnp luci-app-wechatpush luci-app-zerotier luci-app-vlmcsd
+    luci-app-diskman nano owipcalc gawk grep sed coreutils-sort
 
   # Image Builder does not add LuCI translations automatically.
   # Unavailable ones are skipped at build time rather than failing the build.
   ZH_I18N: >-
-    luci-i18n-autoreboot-zh-cn luci-i18n-banip-zh-cn luci-i18n-homeproxy-zh-cn
+    luci-i18n-autoreboot-zh-cn luci-i18n-banip-zh-cn
+    luci-i18n-cloudflared-zh-cn luci-i18n-homeproxy-zh-cn
     luci-i18n-netdata-zh-cn luci-i18n-nlbwmon-zh-cn luci-i18n-passwall-zh-cn
     luci-i18n-samba4-zh-cn luci-i18n-upnp-zh-cn luci-i18n-wechatpush-zh-cn
     luci-i18n-zerotier-zh-cn luci-i18n-vlmcsd-zh-cn luci-i18n-diskman-zh-cn
@@ -256,11 +257,13 @@ jobs:
       - name: Build firmware
         env:
           EXTRA_PACKAGES: ${{ inputs.extra_packages }}
+          ZH_I18N: ${{ env.ZH_I18N }}
         run: |
           set -euo pipefail
           custom="$(paste -sd' ' custom_packages.txt)"
           echo "PACKAGES(custom)=$custom"
           echo "PACKAGES(builder apps)=$BUILDER_APPS"
+          echo "PACKAGES(i18n)=$ZH_I18N"
 
           mkdir -p bin
           # The image runs as the unprivileged 'build' user (uid 1000).
@@ -305,6 +308,7 @@ jobs:
               echo "NOTE: $p is not in this release, skipping" >&2
             fi
           done
+          echo "PACKAGES(i18n available in this release)=$zh"
 
           # Custom APKs come first; drop duplicate names (keep the pinned version).
           PACKAGES="$(printf '%s %s %s %s' "$CUSTOM" "$BUILDER_APPS" "$zh" "$EXTRA" | xargs)"
@@ -319,8 +323,32 @@ jobs:
           make info | sed -n '1,30p'
           echo "=== Checking package resolution ==="
           make manifest PROFILE="$PROFILE" PACKAGES="$PACKAGES"
+
+          # Patch the init script from the copy installed by make manifest, so
+          # shell edits stay in sync with the nlbwmon version in this release.
+          # /files is mounted read-only, stage a writable copy in the container.
+          rm -rf /tmp/custom-files
+          cp -a /files /tmp/custom-files
+          stock="$(find /home/build/immortalwrt -type f \
+            -path '*/etc/init.d/nlbwmon' -print -quit 2>/dev/null || true)"
+          if [ -n "$stock" ]; then
+            mkdir -p /tmp/custom-files/etc/init.d
+            awk '
+              { print }
+              /^start_service\(\)/ && !done {
+                print "\trmmod nf_conntrack_netlink 2>/dev/null || true"
+                print "\tmodprobe nf_conntrack_netlink"
+                done = 1
+              }
+            ' "$stock" > /tmp/custom-files/etc/init.d/nlbwmon
+            chmod 755 /tmp/custom-files/etc/init.d/nlbwmon
+            echo "Patched nlbwmon init script from $stock"
+          else
+            echo "NOTE: nlbwmon not installed; skipping init script patch" >&2
+          fi
+
           echo "=== Building image ==="
-          make image PROFILE="$PROFILE" PACKAGES="$PACKAGES" FILES="/files" \
+          make image PROFILE="$PROFILE" PACKAGES="$PACKAGES" FILES="/tmp/custom-files" \
             BIN_DIR="/output" ROOTFS_PARTSIZE="$ROOTFS_PARTSIZE"
 
           # Export the build config as x86.config. Some Image Builder images
