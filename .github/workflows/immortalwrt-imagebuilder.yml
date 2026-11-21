@@ -257,13 +257,16 @@ jobs:
       - name: Build firmware
         env:
           EXTRA_PACKAGES: ${{ inputs.extra_packages }}
-          ZH_I18N: ${{ env.ZH_I18N }}
         run: |
           set -euo pipefail
           custom="$(paste -sd' ' custom_packages.txt)"
           echo "PACKAGES(custom)=$custom"
           echo "PACKAGES(builder apps)=$BUILDER_APPS"
           echo "PACKAGES(i18n)=$ZH_I18N"
+          if [ -z "$ZH_I18N" ]; then
+            echo "::error::ZH_I18N is empty - Chinese language packages will be missing from the image" >&2
+            exit 1
+          fi
 
           mkdir -p bin
           # The image runs as the unprivileged 'build' user (uid 1000).
