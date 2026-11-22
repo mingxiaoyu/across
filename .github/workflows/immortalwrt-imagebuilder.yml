@@ -52,20 +52,14 @@ env:
 
   # Apps selected by the old full-source build (openwrt-builder.yml).
   # luci-app-{lucky,fchomo,mihomo,adguardhome} come from the v1.0 APKs instead.
+  # Chinese translations are derived from the luci-app-* entries below at
+  # build time (luci-app-X -> luci-i18n-X-zh-cn) and always installed, so
+  # they cannot drift out of sync with the app list.
   BUILDER_APPS: >-
     luci-app-autoreboot luci-app-banip luci-app-cloudflared luci-app-homeproxy
     luci-app-netdata luci-app-nlbwmon luci-app-passwall luci-app-samba4
     luci-app-upnp luci-app-wechatpush luci-app-zerotier luci-app-vlmcsd
     luci-app-diskman nano owipcalc gawk grep sed coreutils-sort
-
-  # Image Builder does not add LuCI translations automatically.
-  # Unavailable ones are skipped at build time rather than failing the build.
-  ZH_I18N: >-
-    luci-i18n-autoreboot-zh-cn luci-i18n-banip-zh-cn
-    luci-i18n-cloudflared-zh-cn luci-i18n-homeproxy-zh-cn
-    luci-i18n-netdata-zh-cn luci-i18n-nlbwmon-zh-cn luci-i18n-passwall-zh-cn
-    luci-i18n-samba4-zh-cn luci-i18n-upnp-zh-cn luci-i18n-wechatpush-zh-cn
-    luci-i18n-zerotier-zh-cn luci-i18n-vlmcsd-zh-cn luci-i18n-diskman-zh-cn
 
 jobs:
   build:
@@ -260,13 +254,22 @@ jobs:
         run: |
           set -euo pipefail
           custom="$(paste -sd' ' custom_packages.txt)"
+
+          # Every built-in LuCI app has a zh-cn translation in this release.
+          # Derive the names from BUILDER_APPS instead of maintaining a second
+          # list, and install all of them unconditionally.
+          I18N_APPS=''
+          for app in $BUILDER_APPS; do
+            case "$app" in
+              luci-app-*) I18N_APPS="$I18N_APPS luci-i18n-${app#luci-app-}-zh-cn" ;;
+            esac
+          done
+          I18N_APPS="${I18N_APPS# }"
+          echo "I18N_APPS=$I18N_APPS" >> "$GITHUB_ENV"
+
           echo "PACKAGES(custom)=$custom"
           echo "PACKAGES(builder apps)=$BUILDER_APPS"
-          echo "PACKAGES(i18n)=$ZH_I18N"
-          if [ -z "$ZH_I18N" ]; then
-            echo "::error::ZH_I18N is empty - Chinese language packages will be missing from the image" >&2
-            exit 1
-          fi
+          echo "PACKAGES(i18n)=$I18N_APPS"
 
           mkdir -p bin
           # The image runs as the unprivileged 'build' user (uid 1000).
@@ -277,12 +280,12 @@ jobs:
             -v "$PWD/files:/files:ro" \
             -v "$PWD/custom-packages:/custom-packages:ro" \
             -v "$PWD/bin:/output" \
-            "$IMAGE" -s "$custom" "$BUILDER_APPS" "$ZH_I18N" "$EXTRA_PACKAGES" \
+            "$IMAGE" -s "$custom" "$BUILDER_APPS" "$I18N_APPS" "$EXTRA_PACKAGES" \
               "$ROOTFS_PARTSIZE" "$PROFILE" <<'BUILD'
           set -euo pipefail
           CUSTOM="$1"
           BUILDER_APPS="$2"
-          ZH_I18N="$3"
+          I18N_APPS="$3"
           EXTRA="$4"
           ROOTFS_PARTSIZE="$5"
           PROFILE="$6"
@@ -295,28 +298,25 @@ jobs:
             cp "/custom-packages/$src" "packages/$dst"
           done < /custom-packages/custom_files.tsv
 
-          # Load the package index so translations can be checked. Match the
-          # package name as a prefix on the raw listing ("name-version ..."):
-          # apk uses git-hash versions such as 26.298.29275~c84adb9, so parsing
-          # the version off with a regex is fragile. If the listing is empty or
-          # fails, fail OPEN and keep every translation rather than silently
-          # dropping the whole ZH_I18N set -- make manifest will surface a
-          # genuinely missing package as an explicit error.
+          # Diagnostics only: record what the Image Builder package index
+          # actually contains at this point. `make package_list` runs
+          # `apk list --size`, which here reflects only the locally
+          # initialized/indexed APKs -- no remote repository index has been
+          # downloaded yet. That is why the old availability check reported
+          # every luci-i18n-*-zh-cn as "not in this release".
           mkdir -p dl tmp
           make -s package_reload >/dev/null
           make -s package_list >/tmp/pkg-list.txt 2>/dev/null || true
-          zh=''
-          for p in $ZH_I18N; do
-            if [ ! -s /tmp/pkg-list.txt ] || grep -qF "${p}-" /tmp/pkg-list.txt; then
-              zh="$zh $p"
-            else
-              echo "NOTE: $p is not in this release, skipping" >&2
-            fi
-          done
-          echo "PACKAGES(i18n available in this release)=$zh"
+          echo "=== package_list: $(wc -l < /tmp/pkg-list.txt) lines, grep 'zh-cn' ==="
+          grep -F 'zh-cn' /tmp/pkg-list.txt || echo "(no zh-cn entries in package_list)"
+          echo "=== extracted luci-i18n-*-zh-cn package names ==="
+          grep -oE 'luci-i18n-[^[:space:]]*-zh-cn' /tmp/pkg-list.txt | sort -u \
+            || echo "(none)"
+          echo "=== requested translations from BUILDER_APPS ==="
+          printf '%s\n' $I18N_APPS
 
           # Custom APKs come first; drop duplicate names (keep the pinned version).
-          PACKAGES="$(printf '%s %s %s %s' "$CUSTOM" "$BUILDER_APPS" "$zh" "$EXTRA" | xargs)"
+          PACKAGES="$(printf '%s %s %s %s' "$CUSTOM" "$BUILDER_APPS" "$I18N_APPS" "$EXTRA" | xargs)"
           PACKAGES="$(printf '%s\n' $PACKAGES | awk '{ n=$0; sub(/[=~].*/,"",n); if (!seen[n]++) print }' \
             | paste -sd' ' -)"
           if [ -z "$PACKAGES" ]; then
@@ -442,6 +442,11 @@ jobs:
             echo "### Built-in apps (from openwrt-builder.yml)"
             echo '```'
             echo "$BUILDER_APPS" | tr ' ' '\n'
+            echo '```'
+            echo
+            echo "### Chinese translations (derived from built-in apps)"
+            echo '```'
+            echo "$I18N_APPS" | tr ' ' '\n'
             echo '```'
             if [ -n "$EXTRA_PACKAGES" ]; then
               echo
